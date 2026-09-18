@@ -10,6 +10,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserLoggerService } from './user.logger.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -77,7 +78,10 @@ export class UserService {
   // server runs, and disappear when you restart (or when --watch reloads
   // after a file save). A real app would use a database.
   // ---------------------------------------------------------------------------
-  private users = [
+  // `User[]` gives the array an explicit shape. Without it, TypeScript guesses
+  // the type from the starting values ({ id, name } only), so `user.email = ...`
+  // in updateUser would be a compile error.
+  private users: User[] = [
     { id: 1, name: 'saim' },
     { id: 2, name: 'Jane Smith' },
     { id: 3, name: 'Alice Johnson' },
@@ -109,10 +113,13 @@ export class UserService {
     }
   }
 
-  getUserById(id: string) {
-    // `id` comes from the URL, so it's a string ("2"). The stored ids are
-    // numbers (2). "2" === 2 is false, so we convert with parseInt first.
-    const user = this.users.find((user) => user.id === parseInt(id));
+  // `id` is already a NUMBER here. The controller's ParseIntPipe converted it
+  // ("2" → 2) and rejected junk like "1abc" with a 400 before we got here.
+  // Before the fix this took a string and did `parseInt(id)`, and
+  // parseInt("1abc") === 1, so /user/1abc returned user 1.
+  // Converting input is the edge's job (pipes), not the business logic's.
+  getUserById(id: number) {
+    const user = this.users.find((user) => user.id === id);
     if (user) {
       return user;
     } else {
@@ -123,24 +130,27 @@ export class UserService {
   // Takes the whole DTO now instead of just `name`: when the DTO grows
   // (email, age...), this signature doesn't change.
   createUser(dto: CreateUserDto) {
-    const newUser = {
+    const newUser: User = {
       // Uses the current array length to make the next id.
       // (Simple, but if you ever delete users this can create duplicate ids.)
       id: this.users.length + 1,
 
-      // `...dto` copies EVERY property the object has, not only the ones the
-      // CreateUserDto type lists. TypeScript types don't exist at runtime.
+      // FIXED (2026-09-18): copy only the fields we mean, instead of `...dto`.
       //
-      // ⚠️ MASS ASSIGNMENT (tested 2026-09-18):
+      // `...dto` copied EVERY property the body had, not only the ones the
+      // CreateUserDto type lists (TypeScript types don't exist at runtime).
+      // Tested before the fix:
       //   POST { "name": "hacker", "email": "h@x.com", "isAdmin": true }
       //   → saved as { id: 5, name: 'hacker', email: 'h@x.com', isAdmin: true }
-      // With a real DB this could mean users making themselves admin, or
-      // overwriting `id`/`createdAt`. Two layers of defense:
-      //   1. ValidationPipe({ whitelist: true }) strips unknown fields (main.ts)
-      //   2. copy only the fields you mean: { name: dto.name, email: dto.email }
-      // Note the order: because `...dto` comes AFTER `id`, a body with
-      // { "id": 1 } would also OVERWRITE the generated id.
-      ...dto,
+      // And since `...dto` came AFTER `id`, a body with { "id": 1 } could even
+      // overwrite the generated id.
+      //
+      // Two layers of defense now:
+      //   1. ValidationPipe({ whitelist, forbidNonWhitelisted }) rejects unknown fields (main.ts)
+      //   2. here, explicit fields, so even if someone later weakens the pipe
+      //      or adds `role` to this DTO for an admin route, nothing extra is written.
+      name: dto.name,
+      email: dto.email,
     };
 
     // .push CHANGES the array stored on the object. Because the same
@@ -150,16 +160,31 @@ export class UserService {
     return newUser;
   }
 
-  updateUser(id: string, name: string) {
-    const userIndex = this.users.findIndex((user) => user.id === parseInt(id));
-    if (userIndex !== -1) {
-      // Changes the user object inside the array directly.
-      this.users[userIndex].name = name;
-      return this.users[userIndex];
-    } else {
+  // FIXED (2026-09-18): takes the whole UpdateUserDto, where every field is
+  // OPTIONAL (PartialType). Before, it took only `name`, so once name became
+  // optional, PUT { "email": "x@y.com" } would have set name to undefined.
+  // Now: only fields the client actually sent get changed.
+  updateUser(id: number, dto: UpdateUserDto) {
+    const user = this.users.find((user) => user.id === id);
+    if (!user) {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
+
+    // `find` returns a REFERENCE to the object inside the array (note 02:
+    // variables hold addresses), so changing `user` changes the stored user.
+    if (dto.name !== undefined) user.name = dto.name;
+    if (dto.email !== undefined) user.email = dto.email;
+    return user;
   }
+}
+
+// The shape of a stored user. `email?` = optional, because the seed users
+// above were created before email existed. (With a real DB, this would be an
+// entity class: course lesson21, "Creating a TypeORM Entity".)
+export interface User {
+  id: number;
+  name: string;
+  email?: string;
 }
 
 // ============================================================================

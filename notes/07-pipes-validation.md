@@ -147,6 +147,23 @@ app.useGlobalPipes(new ValidationPipe({...}))   // main.ts, what we do
 
 Also notice: validation 400s are **not wrapped** by `TransformInterceptor`. The pipe threw, so `map` never ran (note 06).
 
+**✅ After the fixes (same day, commit "fix: ..."): tested again:**
+
+| Request | Before | After |
+|---|---|---|
+| `POST {name, email, isAdmin:true}` | 201, `isAdmin` saved | **400** `"property isAdmin should not exist"` |
+| `PUT /user/1 {name:"saim2"}` | 400 email required | **200**, only name changed |
+| `PUT /user/1 {email:"s@x.com"}` | — | **200**, only email changed |
+| `PUT /user/1 {name:"a"}` | — | **400** still validated if sent |
+| `GET /user/1abc` | 200, returned user 1 | **400** `"Validation failed (numeric string is expected)"` |
+
+What changed (read the diff; these were practice tasks 1–3):
+- `main.ts`: `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`
+- `update-user.dto.ts`: `extends PartialType(CreateUserDto)`
+- `user.controller.ts`: `@Param('id', ParseIntPipe) id: number`, and the whole update DTO goes to the service
+- `user.service.ts`: explicit fields instead of `...dto`, `id: number`, update only the fields that were sent, `User` interface
+- Unit tests in `user.service.spec.ts` lock this behavior in (practice tasks 4–6 are still yours)
+
 ## 5. ❌ How NOT to do it
 
 | Don't | What goes wrong |

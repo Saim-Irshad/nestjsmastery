@@ -2,28 +2,37 @@
 // update-user.dto.ts: SHAPE OF THE BODY FOR  PUT /user/:id
 // ============================================================================
 
+import { PartialType } from '@nestjs/mapped-types';
 import { CreateUserDto } from './create-user.dto';
 
 // ---------------------------------------------------------------------------
-// `extends` = INHERITANCE: "UpdateUserDto gets everything CreateUserDto has."
+// HISTORY: this used to be `extends CreateUserDto`
 // ---------------------------------------------------------------------------
-// So even though the braces are empty, UpdateUserDto has `name: string`.
+// `extends` = INHERITANCE: "UpdateUserDto gets everything CreateUserDto has."
+// Functional comparison: object spread, { ...createUserShape }.
 //
-// Functional comparison: it's like object spread
-//   const createUserShape = { name: 'string' };
-//   const updateUserShape = { ...createUserShape };   // copy everything, add more if needed
-//
-// ⚠️ BUG since the validation decorators were added (tested 2026-09-18):
-// `extends` ALSO inherits the validation RULES, including "email is required".
+// Bug found 2026-09-18: `extends` ALSO inherited the validation RULES,
+// including "email is required".
 //   PUT /user/1  { "name": "saim2" }
 //   → 400 ["Email must be a valid email address"]
 // The client only wanted to change the name.
 //
-// Fix: PartialType from @nestjs/mapped-types (`pnpm add @nestjs/mapped-types`):
-//   export class UpdateUserDto extends PartialType(CreateUserDto) {}
-// PartialType(X) is a FUNCTION that builds a new class at runtime: same fields
-// and same rules as X, but every field gets @IsOptional(). "If you send it, it
-// must be valid; you don't have to send it."
-// (Official course: lesson 20, "Validate Input Data with Data Transfer Objects")
 // ---------------------------------------------------------------------------
-export class UpdateUserDto extends CreateUserDto {}
+// FIX: PartialType(CreateUserDto)
+// ---------------------------------------------------------------------------
+// PartialType is a FUNCTION that builds and returns a NEW CLASS at runtime:
+// same fields and same rules as CreateUserDto, but each field also gets
+// @IsOptional(). So "if you send it, it must be valid; you don't have to send it":
+//   { "name": "saim2" }            → ok
+//   { "email": "new@x.com" }       → ok
+//   { "name": "a" }                → 400 (still must be ≥ 3 chars IF sent)
+//   {}                             → ok (nothing to change)
+//
+// `extends PartialType(CreateUserDto)` works because in JS you can extend
+// ANY expression that returns a class. `extends` doesn't need a name.
+//
+// It also changes the TypeScript type: name?: string, email?: string.
+//
+// (Official course: lesson14.mp4, "Validate Input Data with Data Transfer Objects")
+// ---------------------------------------------------------------------------
+export class UpdateUserDto extends PartialType(CreateUserDto) {}

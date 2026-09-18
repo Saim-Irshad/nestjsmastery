@@ -38,8 +38,9 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 //   { "name": "al" }            → 400 ["Name must be at least 3 characters long",
 //                                      "Email must be a valid email address"]
 //   { "name": 123, ... }        → 400 ["...at least 3 characters", "Name must be a string"]
-//   { name, email, isAdmin }    → 201 ⚠️ isAdmin is NOT rejected (no rule = not checked).
-//                                 Fix: ValidationPipe({ whitelist: true }) in main.ts.
+//   { name, email, isAdmin }    → was 201 ⚠️ (no rule = not checked, not removed).
+//                                 FIXED: whitelist + forbidNonWhitelisted in main.ts
+//                                 → now 400 "property isAdmin should not exist"
 // ============================================================================
 export class CreateUserDto {
   // A FIELD DECLARATION with no value. It says "objects of this type have

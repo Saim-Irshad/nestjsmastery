@@ -44,3 +44,8 @@ because ValidationPipe had no `whitelist` and the service spread `...dto`. Valid
 **🔧 Setup mistake:** ran `pnpm add` / `nest g` in the parent folder `nestjsmastery/` instead of `nestjsmasterycourse/`.
 It still worked locally only because Node searches parent folders for packages. A fresh clone from GitHub would break.
 Lesson: always check `pwd` before installing, and read `package.json` after.
+
+**🔧 Tests were broken from day 1 (not my code):** Nest 12 packages are **ES modules only**. Jest normally loads files with
+`require()` (CommonJS), which can't load ESM on Node < 24.9 → "Must use import to load ES Module". Fix: run Jest in ESM mode
+(`extensionsToTreatAsEsm`, ts-jest `useESM`, and `import { jest } from '@jest/globals'` in specs). The generated specs also
+failed with DI errors: a test module must **provide every dependency** (real or fake via `useValue`), same as a real module.

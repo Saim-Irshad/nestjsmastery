@@ -46,17 +46,18 @@ async function bootstrap() {
   //   2. runs the @IsString/@IsEmail/... decorators on it (class-validator)
   //   3. any rule fails → throws BadRequestException → 400 with a list of messages
   //
-  // ⚠️ SECURITY (tested 2026-09-18): with NO options, unknown fields pass
-  // straight through. POST { name, email, isAdmin: true } → 201, and isAdmin
-  // got SAVED (because the service spreads ...dto). Real APIs use:
-  //   new ValidationPipe({
-  //     whitelist: true,             // strip fields that have no decorator in the DTO
-  //     forbidNonWhitelisted: true,  // ...or reject the request: "property isAdmin should not exist"
-  //     transform: true,             // give the handler a real DTO instance (and convert "5" → 5 for typed params)
-  //   })
+  // FIXED (2026-09-18). Before, it was `new ValidationPipe()` with NO options,
+  // and unknown fields passed straight through: POST { name, email, isAdmin: true }
+  // → 201, and isAdmin got SAVED (the service spread ...dto).
   //
   // `new` here is fine: ValidationPipe needs no injected dependencies.
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // strip fields that have no validation decorator in the DTO
+      forbidNonWhitelisted: true, // ...and instead of silently stripping, reject: 400 "property isAdmin should not exist"
+      transform: true, // handler gets a real DTO instance (and typed params get converted)
+    }),
+  );
 
   // --------------------------------------------------------------------------
   // GLOBAL RESPONSE WRAPPER (notes/06-interceptors.md)

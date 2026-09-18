@@ -14,8 +14,20 @@ const config: Config = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
+  // Nest 12 packages are ES modules only. On Node < 24.9 Jest can't
+  // `require()` them, so tests run in Jest's ESM mode (the `test` script
+  // already passes --experimental-vm-modules for this).
+  extensionsToTreatAsEsm: ['.ts'],
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.ts$': [
+      'ts-jest',
+      // tsconfig.json says "nodenext", which compiles to CommonJS here because
+      // package.json has no "type": "module". Tests need real ESM output.
+      {
+        useESM: true,
+        tsconfig: { module: 'esnext', moduleResolution: 'bundler' },
+      },
+    ],
   },
   moduleNameMapper: pathsToModuleNameMapper(paths, { prefix: '<rootDir>/' }),
   collectCoverageFrom: [

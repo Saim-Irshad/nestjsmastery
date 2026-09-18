@@ -5,7 +5,16 @@
 // then hand the real work to the service. Keep controllers thin.
 // ============================================================================
 
-import { Controller, Get, Param, Body, Post, Query, Put } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Body,
+  Post,
+  Query,
+  Put,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserService } from './user.service';
@@ -79,9 +88,16 @@ export class UserController {
   // --------------------------------------------------------------------------
   // '/:id' means "this part of the URL is a variable called id".
   // @Param('id') pulls it out. It's ALWAYS a STRING ("2", not 2), because
-  // URLs are text. That's why the service uses parseInt.
+  // URLs are text.
+  //
+  // FIXED (2026-09-18): ParseIntPipe converts it at the edge:
+  //   "2"    → 2 (the handler gets a real number)
+  //   "1abc" → 400 "Validation failed (numeric string is expected)"
+  // Before, the service did parseInt(id), and parseInt("1abc") === 1, so
+  // /user/1abc returned user 1. Pipes placed INSIDE @Param() only run for
+  // that one argument (notes/07-pipes-validation.md, 3.5).
   @Get('/:id')
-  getUserbyId(@Param('id') id: string) {
+  getUserbyId(@Param('id', ParseIntPipe) id: number) {
     return this.userService.getUserById(id);
   }
 
@@ -97,8 +113,8 @@ export class UserController {
   // Nest knows which class to validate against because TypeScript saved the
   // param type (`design:paramtypes` = [CreateUserDto]), the same trick DI uses.
   // If validation fails, this method is never called (400 is sent instead).
-  // Tested: it's still a plain object here (`instanceof CreateUserDto` is
-  // false) unless ValidationPipe({ transform: true }) is set.
+  // With `transform: true` (main.ts) it's now a real CreateUserDto instance
+  // (tested: without that option it was a plain object, `instanceof` false).
   //
   // Whatever a controller method RETURNS, Nest turns into JSON and sends
   // back as the response. You never call res.send() yourself.
@@ -112,9 +128,20 @@ export class UserController {
   // --------------------------------------------------------------------------
   // You can combine several parameter decorators. Nest fills each argument
   // from the matching part of the request.
+  //
+  // FIXED (2026-09-18): UpdateUserDto now uses PartialType, so the client can
+  // send only the fields it wants to change ({ "name": "x" } OR { "email": ... }),
+  // and the whole DTO goes to the service instead of just `.name`.
+  //
+  // REST note (coming in notes/08): PUT traditionally means "REPLACE the whole
+  // resource", PATCH means "change SOME fields". What this route does is
+  // really a PATCH. The official course uses @Patch for this.
   @Put('/:id')
-  updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.updateUser(id, updateUserDto.name);
+  updateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.userService.updateUser(id, updateUserDto);
   }
 }
 

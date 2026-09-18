@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 @Injectable()
 export class GuardRoleGuard implements CanActivate {
   canActivate(
-    context: ExecutionContext,
+    _context: ExecutionContext, // `_` prefix = "intentionally unused" (generated stub, always allows)
   ): boolean | Promise<boolean> | Observable<boolean> {
     return true;
   }
