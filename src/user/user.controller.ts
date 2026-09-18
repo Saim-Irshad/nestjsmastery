@@ -93,11 +93,18 @@ export class UserController {
   // { name: "Ali" }, not something made with `new CreateUserDto()`.
   // (See create-user.dto.ts.)
   //
+  // UPDATE (Day 4): the global ValidationPipe now runs BEFORE this method.
+  // Nest knows which class to validate against because TypeScript saved the
+  // param type (`design:paramtypes` = [CreateUserDto]), the same trick DI uses.
+  // If validation fails, this method is never called (400 is sent instead).
+  // Tested: it's still a plain object here (`instanceof CreateUserDto` is
+  // false) unless ValidationPipe({ transform: true }) is set.
+  //
   // Whatever a controller method RETURNS, Nest turns into JSON and sends
   // back as the response. You never call res.send() yourself.
   @Post()
   createUser(@Body() createUserDto: CreateUserDto) {
-    return this.userService.createUser(createUserDto.name);
+    return this.userService.createUser(createUserDto);
   }
 
   // --------------------------------------------------------------------------

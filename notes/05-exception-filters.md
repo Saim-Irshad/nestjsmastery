@@ -166,7 +166,7 @@ A custom filter can shape **errors** as `{ success: false, statusCode, message }
 - [04 — Shared state](04-requests-shared-state-event-loop.md): unhandled async errors and the single process
 - 06 — Interceptors: shape successes (filters shape failures); `catchError` in RxJS
 - 07 — Pipes: throw `BadRequestException` for invalid input automatically
-- 09 — Guards: `UnauthorizedException` / `ForbiddenException`
+- 15 — Guards: `UnauthorizedException` / `ForbiddenException`
 
 ## 8. ✍️ In my own words
 > _(write here)_

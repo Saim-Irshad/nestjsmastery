@@ -31,3 +31,16 @@
 - The object is the **worker** (like one bank teller). The data each person gets depends on **what their request carries**
   (id, token) and **what the DB returns for that**.
 - The real danger: storing per-request data (like `this.currentUser`) on the shared object.
+
+## 2026-09-18 · Validation
+
+**💡 Aha: `dto: CreateUserDto` checks nothing.** TypeScript types are gone at runtime. The decorators + ValidationPipe do the checking.
+
+**⚠️ Found in my own code: mass assignment.** `POST { name, email, isAdmin: true }` returned 201 and `isAdmin` was saved,
+because ValidationPipe had no `whitelist` and the service spread `...dto`. Validation only checks fields it has rules for; it doesn't remove the others.
+
+**⚠️ Found in my own code: `extends` inherits rules too.** `UpdateUserDto extends CreateUserDto` made `email` required on `PUT`. → `PartialType`.
+
+**🔧 Setup mistake:** ran `pnpm add` / `nest g` in the parent folder `nestjsmastery/` instead of `nestjsmasterycourse/`.
+It still worked locally only because Node searches parent folders for packages. A fresh clone from GitHub would break.
+Lesson: always check `pwd` before installing, and read `package.json` after.

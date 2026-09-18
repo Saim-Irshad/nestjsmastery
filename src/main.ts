@@ -15,6 +15,9 @@ import { NestFactory } from '@nestjs/core';
 // We pass the class itself to Nest. A class is just a value in JS
 // (it's really a function), so it can be passed around like any variable.
 import { AppModule } from './app.module';
+import { TransformInterceptor } from './utils/transform.interceptor';
+
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // What happens inside NestFactory.create(AppModule):
@@ -33,6 +36,36 @@ async function bootstrap() {
   //
   // `app` is the finished application object.
   const app = await NestFactory.create(AppModule);
+
+  // --------------------------------------------------------------------------
+  // GLOBAL VALIDATION PIPE (notes/07-pipes-validation.md)
+  // --------------------------------------------------------------------------
+  // Runs on EVERY route, right before the controller method, for every
+  // argument (@Body, @Param, @Query). For a @Body() typed as CreateUserDto it:
+  //   1. turns the plain JSON into a CreateUserDto instance (class-transformer)
+  //   2. runs the @IsString/@IsEmail/... decorators on it (class-validator)
+  //   3. any rule fails → throws BadRequestException → 400 with a list of messages
+  //
+  // ⚠️ SECURITY (tested 2026-09-18): with NO options, unknown fields pass
+  // straight through. POST { name, email, isAdmin: true } → 201, and isAdmin
+  // got SAVED (because the service spreads ...dto). Real APIs use:
+  //   new ValidationPipe({
+  //     whitelist: true,             // strip fields that have no decorator in the DTO
+  //     forbidNonWhitelisted: true,  // ...or reject the request: "property isAdmin should not exist"
+  //     transform: true,             // give the handler a real DTO instance (and convert "5" → 5 for typed params)
+  //   })
+  //
+  // `new` here is fine: ValidationPipe needs no injected dependencies.
+  app.useGlobalPipes(new ValidationPipe());
+
+  // --------------------------------------------------------------------------
+  // GLOBAL RESPONSE WRAPPER (notes/06-interceptors.md)
+  // --------------------------------------------------------------------------
+  // Every SUCCESSFUL response becomes { statusCode, data, success: true }.
+  // Errors (404, validation 400s) skip it and keep Nest's default shape.
+  // We call `new` ourselves, so DI can't inject anything into it; if it ever
+  // needs Reflector/Logger, register it with APP_INTERCEPTOR in a module instead.
+  app.useGlobalInterceptors(new TransformInterceptor());
 
   // Start the HTTP server. `??` means "use the right side if the left side
   // is null/undefined", so it uses PORT from the environment or falls back to 3000.

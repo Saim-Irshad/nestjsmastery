@@ -1,14 +1,16 @@
-# 00 — The 20-Day Roadmap
+# 00 — The 20-Day Roadmap (v2)
 
 > Started **2026-09-15** → target finish **2026-10-04**.
-> Assumes ~3–4 focused hours/day. If a day slips, **don't skip the checkpoint days**. Squeeze a topic day instead.
+> **v2 (2026-09-18):** switched from the YouTube video to the **official NestJS Fundamentals course** after the Pipes section.
+> Lesson numbers = video file numbers, see [course-map.md](course-map.md).
+> Assumes ~3–4 focused hours/day. If a day slips, **don't skip the checkpoint day**. Squeeze a topic day instead.
 
 ## The idea behind this plan
 
 Three tracks run side by side, every day:
 
 ```
- Track A: NestJS            → what the framework gives you          (the video, then the official course)
+ Track A: NestJS            → what the framework gives you          (official course)
  Track B: JS / OOP / Node   → the language + runtime underneath     (classes, this, event loop, async)
  Track C: Backend & System  → how real systems behave in production (HTTP, DB, auth, scaling, failures)
 ```
@@ -16,50 +18,54 @@ Three tracks run side by side, every day:
 Nest is the vehicle. **Track C is what makes you senior.** A junior knows *how to write* an interceptor;
 a senior knows *when it's the wrong tool*, what it costs, and what breaks at 1000 req/s.
 
-20 days is tight for the video + official course + system design. So:
-**depth on core concepts** (they compound), **breadth on advanced ones** (know they exist, when to reach for them).
-
 ---
 
-## Phase 1 — Nest core + foundations (Days 1–6) · Video 00:00 → 52:00
+## Phase 1 — Nest core + foundations (Days 1–5) · YouTube video + course lessons 1–16
 
-| Day | Nest (A) | JS / Node (B) | Backend / System (C) | Status |
+| Day | Date | Nest (A) | Backend / System (C) | Note | Status |
+|---|---|---|---|---|---|
+| 1 | 09-15 | Express vs Nest, setup, modules & architecture | feature folders, layers | 01 | ✅ |
+| 2 | 09-16 | Controllers, providers, DI; JS classes & `this` | shared state, event loop, stateless HTTP | 02 03 04 | ✅ |
+| 3 | 09-17 | Exception filters, interceptors | error contracts, response envelopes | 05 06 | ✅ |
+| 4 | 09-18 | Pipes & validation · course lessons 13–16 | trust boundary, mass assignment | 07 | ✅ |
+| 5 | 09-19 | Course lessons 1–12 (fast, mostly review) + note 07 practice | status codes, PUT vs PATCH, idempotency, pagination basics | 08 | ⬜ |
+
+## Phase 2 — Data (Days 6–8) · lessons 17–29
+
+| Day | Date | Nest (A) | Backend / System (C) | Note | Status |
+|---|---|---|---|---|---|
+| 6 | 09-20 | Docker, Postgres, TypeORM module, entities, repositories (17–22) | what an ORM does, connection pools, containers | 09 | ⬜ |
+| 7 | 09-21 | Relations, cascades, pagination (23–26) | foreign keys, N+1 queries, offset vs cursor pagination | 10 | ⬜ |
+| 8 | 09-22 | Transactions, indexes, migrations (27–29) | ACID, race conditions, how indexes work, safe schema changes | 11 | ⬜ |
+
+## Phase 3 — Nest internals & building blocks (Days 9–13) · lessons 30–57
+
+| Day | Date | Nest (A) | Backend / System (C) | Note | Status |
+|---|---|---|---|---|---|
+| 9 | 09-23 | DI deep dive, encapsulation, custom providers (30–37) | depend on abstractions, swapping implementations | 03 🔄, 12 | ⬜ |
+| 10 | 09-24 | Dynamic modules, scopes (38–40), config (41–47) | 12-factor config, secrets, fail-fast startup | 13, 14 | ⬜ |
+| 11 | 09-25 | Binding, filters, guards, metadata, interceptors, timeouts, custom pipes (48–55) | authn vs authz, API keys | 15, 05–07 🔄 | ⬜ |
+| 12 | 09-26 | Middleware, param decorators (56–57), Swagger (58–62) | request logging, API contracts | 16, 17 | ⬜ |
+| 13 | 09-27 | 🏁 **Checkpoint:** build a small API from scratch (Postgres + validation + guards + config) without notes | mixed review quiz | — | ⬜ |
+
+## Phase 4 — Quality, Mongo, Auth (Days 14–17)
+
+| Day | Date | Focus | Note | Status |
 |---|---|---|---|---|
-| 1 | Express vs Nest, setup, modules & architecture | how Express works internally | feature-based folders, layers | ✅ |
-| 2 | Controllers, providers, DI | classes, objects in memory, `this`, `new` | shared state, event loop, stateless HTTP | ✅ |
-| 3 | Exception filters → **Interceptors** | Observables vs Promises (just enough RxJS) | error contracts, response envelopes, status codes | 🔄 |
-| 4 | Pipes, DTO validation (`class-validator`), `ParseIntPipe` | runtime vs compile-time types | trust boundaries: never trust the client | ⬜ |
-| 5 | Middleware, Guards, full request lifecycle | closures & `next()` chains | authentication vs authorization, sessions vs JWT (concept) | ⬜ |
-| 6 | 🏁 **Checkpoint:** build a small "Bookmarks API" from an empty module without looking at notes | — | mixed review quiz | ⬜ |
+| 14 | 09-28 | Testing: unit + e2e (63–68) | 18 | ⬜ |
+| 15 | 09-29 | MongoDB + Mongoose (69–76): fast; focus on **SQL vs NoSQL** trade-offs | 19 | ⬜ |
+| 16 | 09-30 | Auth course (course 2), part 1: hashing, sessions vs JWT, guards | 20+ | ⬜ |
+| 17 | 10-01 | Auth course, part 2: authorization, roles/permissions | 20+ | ⬜ |
 
-## Phase 2 — Real app with the video (Days 7–11) · Video 52:00 → end
+## Phase 5 — System design + capstone (Days 18–20)
 
-| Day | Nest (A) | JS / Node (B) | Backend / System (C) | Status |
-|---|---|---|---|---|
-| 7 | Project setup, config & env vars, Arcjet | `process.env`, module loading | **rate limiting** (token bucket, windows), bot protection, secrets handling | ⬜ |
-| 8 | Database setup with the video's ORM | async/await with I/O, connection pools | schema, migrations, relations, **indexes**, N+1 queries | ⬜ |
-| 9 | Better-Auth | cookies & headers from the server side | password hashing, sessions vs JWT for real, CSRF/XSS from the backend side | ⬜ |
-| 10 | User module, interceptor, hackathon module | — | ownership checks ("can THIS user edit THIS thing?"), pagination | ⬜ |
-| 11 | 🏁 **Checkpoint:** add a feature of your own to the video app (write a 1-page design first) | — | mixed review quiz | ⬜ |
+| Day | Date | Focus | Status |
+|---|---|---|---|
+| 18 | 10-02 | System design: stateless services, load balancers, replicas, caching, queues, rate limiting. Picks from the Advanced Concepts course. | ⬜ |
+| 19 | 10-03 | Capstone build: auth, validation, Postgres, tests, logging, config, Docker | ⬜ |
+| 20 | 10-04 | Finish + deploy capstone. Mock senior interview: design question + debugging scenarios + own code review. | ⬜ |
 
-## Phase 3 — Official course topics + depth (Days 12–17)
-
-| Day | Nest (A) | JS / Node (B) | Backend / System (C) | Status |
-|---|---|---|---|---|
-| 12 | Testing: unit (mock providers) + e2e (supertest) | test doubles, why DI makes this easy | what to test, test pyramid | ⬜ |
-| 13 | Custom providers (`useValue`/`useFactory`/`useClass`), scopes, dynamic modules | factories, tokens | cost of request scope, circular dependencies as a design smell | ⬜ |
-| 14 | Transactions with the ORM | race conditions with `await` | **transactions, idempotency keys, optimistic locking**, double-submit | ⬜ |
-| 15 | Caching, queues / background jobs | CPU vs I/O work, worker threads | Redis, cache invalidation, "never do slow work inside the request" | ⬜ |
-| 16 | Logging, health checks, graceful shutdown | process signals, unhandled rejections | observability: structured logs, request IDs, 4xx vs 5xx alerts | ⬜ |
-| 17 | Swagger/OpenAPI, versioning, file uploads | streams (taste) | API design: REST conventions, cursor vs offset pagination, breaking changes | ⬜ |
-
-## Phase 4 — System design + capstone (Days 18–20)
-
-| Day | Focus | Status |
-|---|---|---|
-| 18 | System design on paper: stateless services, load balancers, replicas, caching layers, queues. Design a "hackathon platform" for 100k users. | ⬜ |
-| 19 | Capstone build: small but production-shaped API (auth, validation, DB, tests, logging, rate limiting, Docker) | ⬜ |
-| 20 | Finish + deploy capstone. Mock senior interview: design question + debugging scenarios + review of own code. | ⬜ |
+Dropped: the YouTube video's build section (Arcjet, Better-Auth). Rate limiting and auth are covered on Days 16–18 instead.
 
 ---
 

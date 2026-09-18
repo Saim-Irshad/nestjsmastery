@@ -13,13 +13,17 @@ import { CreateUserDto } from './create-user.dto';
 //   const createUserShape = { name: 'string' };
 //   const updateUserShape = { ...createUserShape };   // copy everything, add more if needed
 //
-// You can add extra fields later:
-//   export class UpdateUserDto extends CreateUserDto {
-//     email: string;   // now it has name AND email
-//   }
+// ⚠️ BUG since the validation decorators were added (tested 2026-09-18):
+// `extends` ALSO inherits the validation RULES, including "email is required".
+//   PUT /user/1  { "name": "saim2" }
+//   → 400 ["Email must be a valid email address"]
+// The client only wanted to change the name.
 //
-// (Real Nest projects often use `PartialType(CreateUserDto)` from
-// @nestjs/mapped-types, which makes every field OPTIONAL, since for an update
-// you may only send some fields.)
+// Fix: PartialType from @nestjs/mapped-types (`pnpm add @nestjs/mapped-types`):
+//   export class UpdateUserDto extends PartialType(CreateUserDto) {}
+// PartialType(X) is a FUNCTION that builds a new class at runtime: same fields
+// and same rules as X, but every field gets @IsOptional(). "If you send it, it
+// must be valid; you don't have to send it."
+// (Official course: lesson 20, "Validate Input Data with Data Transfer Objects")
 // ---------------------------------------------------------------------------
 export class UpdateUserDto extends CreateUserDto {}

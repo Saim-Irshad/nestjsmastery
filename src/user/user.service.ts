@@ -9,6 +9,7 @@
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserLoggerService } from './user.logger.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class UserService {
@@ -119,12 +120,27 @@ export class UserService {
     }
   }
 
-  createUser(name: string) {
+  // Takes the whole DTO now instead of just `name`: when the DTO grows
+  // (email, age...), this signature doesn't change.
+  createUser(dto: CreateUserDto) {
     const newUser = {
       // Uses the current array length to make the next id.
       // (Simple, but if you ever delete users this can create duplicate ids.)
       id: this.users.length + 1,
-      name: name,
+
+      // `...dto` copies EVERY property the object has, not only the ones the
+      // CreateUserDto type lists. TypeScript types don't exist at runtime.
+      //
+      // ⚠️ MASS ASSIGNMENT (tested 2026-09-18):
+      //   POST { "name": "hacker", "email": "h@x.com", "isAdmin": true }
+      //   → saved as { id: 5, name: 'hacker', email: 'h@x.com', isAdmin: true }
+      // With a real DB this could mean users making themselves admin, or
+      // overwriting `id`/`createdAt`. Two layers of defense:
+      //   1. ValidationPipe({ whitelist: true }) strips unknown fields (main.ts)
+      //   2. copy only the fields you mean: { name: dto.name, email: dto.email }
+      // Note the order: because `...dto` comes AFTER `id`, a body with
+      // { "id": 1 } would also OVERWRITE the generated id.
+      ...dto,
     };
 
     // .push CHANGES the array stored on the object. Because the same
