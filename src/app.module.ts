@@ -9,6 +9,8 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { CoffeeModule } from './coffee/coffee.module';
 
 // ---------------------------------------------------------------------------
 // WHAT IS `@Module(...)`? (DECORATORS)
@@ -37,7 +39,46 @@ import { UserModule } from './user/user.module';
 @Module({
   // imports: other modules whose pieces should also be loaded.
   // Because UserModule is here, /user routes exist.
-  imports: [UserModule],
+  imports: [
+    UserModule,
+    // ------------------------------------------------------------------------
+    // OPEN THE DATABASE CONNECTION (once, when the app starts)
+    // ------------------------------------------------------------------------
+    // Written by hand this would be one line near the top of your app:
+    //   const db = await connectToPostgres({ host, port, user, password })
+    // Nest does it here instead, so any feature can use the same connection.
+    //
+    // It doesn't open one connection per request either. It keeps a small set
+    // of open connections (about 10) and lends them out, because opening a new
+    // one for every request would be slow.
+    //
+    // This runs ONCE, in this file only. The log line
+    // "TypeOrmModule dependencies initialized" means it connected.
+    TypeOrmModule.forRoot({
+      type: 'postgres', // which database software
+      host: 'localhost', // our Mac: the container's port is mapped to it
+      port: 5432,
+      username: 'postgres', // the default user inside the postgres image
+      password: 'pass123', // matches POSTGRES_PASSWORD in docker-compose.yaml
+      database: 'postgres', // the default database created by the image
+
+      // Pick up every entity class that a feature module registered with
+      // forFeature([...]). Without it, you'd have to list them all here.
+      autoLoadEntities: true,
+
+      // At startup, compare the entity classes with the real tables and change
+      // the database so they match. That's how the "coffee" table appeared:
+      // we never wrote CREATE TABLE.
+      //
+      // ⚠️ LOCAL DEVELOPMENT ONLY. It can delete a column (and its data) to
+      // make the table match a class. Rename `brand` in the entity and the
+      // whole brand column can be dropped. Real projects turn this off and use
+      // migration files instead: small, reviewed steps, committed to git
+      // (course lesson29).
+      synchronize: true,
+    }),
+    CoffeeModule,
+  ],
 
   // controllers: classes that handle HTTP requests (routes).
   // Nest will `new` them and connect their methods to URLs.

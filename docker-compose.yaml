@@ -1,0 +1,63 @@
+# =============================================================================
+# docker-compose.yaml: RUNS POSTGRES ON THIS MACHINE, WITHOUT INSTALLING IT
+# =============================================================================
+# Instead of downloading Postgres and installing it on macOS, we run a ready-made
+# Postgres that comes packed with its own mini Linux. Everyone on a team runs
+# the exact same one, and deleting it leaves nothing behind.
+#
+# Start it:   docker compose up -d      (-d = keep it running in the background)
+# Check it:   docker compose ps
+# Logs:       docker compose logs -f db
+# Stop it:    docker compose stop       (data kept)
+# Remove it:  docker compose down       (container gone, data kept in its volume)
+#             docker compose down -v    (⚠️ deletes the data too)
+# SQL shell:  docker compose exec db psql -U postgres     (\q to quit)
+#
+# ⚠️ Run these INSIDE this folder. From the parent folder you get
+#    "no configuration file provided: not found".
+#
+# Notes: notes/09-database-docker-typeorm.md (Part A)
+# =============================================================================
+
+# `version` is leftover from older Docker versions. It does nothing now, which
+# is why every command prints "the attribute `version` is obsolete". Safe to delete.
+version: '3'
+
+services:
+  # "db" is the name of this box. If our Nest app ever runs in a box too, it
+  # would reach Postgres at host "db" instead of "localhost".
+  db:
+    # The ready-made Postgres package downloaded from Docker Hub.
+    # No version given = "latest", which today is 18.6 but changes over time.
+    # Better: `postgres:18`, so a teammate joining next year gets what we have.
+    image: postgres
+
+    # Start again automatically if it crashes, or when Docker Desktop starts.
+    restart: always
+
+    ports:
+      # 'our Mac : inside the box'. The database listens on 5432 inside, and
+      # this line opens a door so tools on the Mac (Nest, TablePlus, psql) can
+      # reach it at localhost:5432.
+      # '127.0.0.1:5432:5432' would keep it reachable from this Mac only,
+      # instead of from anyone on the same Wi-Fi.
+      - '5432:5432'
+
+    environment:
+      # Used ONLY the very first time, when the data folder is empty, to set
+      # the password. Changing it later does nothing: the password already
+      # exists in the stored data. (Change it with SQL, or wipe with down -v.)
+      POSTGRES_PASSWORD: pass123
+
+# ⚠️ MISSING: a named place to keep the data.
+# Right now Postgres writes to a folder with a random name that's tied to this
+# container. `docker compose down` + `up` gives you a brand-new empty one, so
+# your tables look deleted. To keep data between restarts, add:
+#
+#   volumes:
+#     - pgdata:/var/lib/postgresql   # (path for Postgres 18; older ones use .../data)
+#
+# and at the bottom of the file:
+#
+# volumes:
+#   pgdata:

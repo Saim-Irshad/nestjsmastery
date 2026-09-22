@@ -32,10 +32,10 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming
 
 | Video | Lesson | Note | |
 |---|---|---|---|
-| 17–19 | Before we start, Docker, running PostgreSQL | 09 Database, Docker & TypeORM | ⬜ |
-| 20 | TypeORM Module | 09 | ⬜ |
-| 21 | Creating an Entity | 09 | ⬜ |
-| 22 | Using a Repository | 09 | ⬜ |
+| 17–19 | Before we start, Docker, running PostgreSQL | [09](09-database-docker-typeorm.md) Part A | ✅ |
+| 20 | TypeORM Module | [09](09-database-docker-typeorm.md) Part B | ✅ |
+| 21 | Creating an Entity | [09](09-database-docker-typeorm.md) Part B | ✅ |
+| 22 | Using a Repository | [09](09-database-docker-typeorm.md) Part B | ✅ |
 | 23 | Relations between Entities | 10 Relations & Pagination | ⬜ |
 | 24 | Retrieving Entities with Relations | 10 | ⬜ |
 | 25 | Cascading Inserts and Updates | 10 | ⬜ |

@@ -104,6 +104,77 @@ Order in `providers: [...]` doesn't matter. The dependency graph decides.
 
 A provider is **private to its module unless exported**, like a file where only `export`ed functions can be imported.
 
+### 3.4b The four keys of `@Module({...})`, in depth (course lesson12 · lesson31)
+
+The VS Code tooltip shows `controllers?: Type<any>[]`. Reading that type:
+- `ModuleMetadata`: the name of the **shape of the object** you pass to `@Module(...)`. It only has these 4 keys.
+- `?`: optional. You can leave any key out (`@Module({})` is valid, and AppModule-style modules often have no controllers).
+- `Type<any>`: Nest's way of saying **"a class"** (something you can call `new` on). Not an instance: you write `CoffeesService`, never `new CoffeesService()`.
+- `[]`: an array of them.
+
+**Mental model: a module is a department with a locked door.**
+
+```
+                    ┌──────────── CoffeesModule ─────────────┐
+ imports ──────────►│  controllers: [CoffeesController]      │  ← the reception desk (routes)
+ "what I BORROW     │  providers:   [CoffeesService,         │  ← the staff Nest hires (creates)
+  from other        │                CoffeesRepo]            │
+  departments"      │  exports:     [CoffeesService]  ───────┼──► "who I LEND to departments
+                    └────────────────────────────────────────┘     that import me"
+```
+
+| Key | Takes | Nest does | Question it answers |
+|---|---|---|---|
+| `controllers` | controller classes | `new`s them once and registers their `@Get/@Post` routes | "Which URLs does this module handle?" |
+| `providers` | services & other injectables | `new`s them once (per module) and makes them injectable **inside this module** | "Which workers live here?" |
+| `exports` | a **subset of `providers`** (or imported modules) | makes those injectable **in modules that import this one** | "Which workers may other modules use?" |
+| `imports` | other **modules** (never services) | gives this module access to **their exports** | "Whose workers do I need?" |
+
+Frontend link: it's exactly **ES module `import`/`export`**, but for *instances*:
+```js
+// coffees.module "file"
+const coffeesService = new CoffeesService();   // providers
+const secretHelper   = new Helper();           // providers (not exported → private)
+export { coffeesService };                     // exports
+
+// coffee-rating.module "file"
+import { coffeesService } from './coffees.module';   // imports: [CoffeesModule]
+```
+
+**Real example from the course (lesson31, CoffeeRatingModule):**
+
+```ts
+// coffees.module.ts
+@Module({
+  controllers: [CoffeesController],
+  providers: [CoffeesService],
+  exports: [CoffeesService],          // ① lend it out
+})
+export class CoffeesModule {}
+
+// coffee-rating.module.ts
+@Module({
+  imports: [CoffeesModule],           // ② borrow from CoffeesModule
+  providers: [CoffeeRatingService],   //    CoffeeRatingService's constructor asks for CoffeesService → works
+})
+export class CoffeeRatingModule {}
+```
+Remove ① **or** ② and startup fails with `Nest can't resolve dependencies of the CoffeeRatingService (?)`.
+
+**Classic mistakes:**
+
+| Mistake | What happens |
+|---|---|
+| `imports: [CoffeesService]` (a service in imports) | Startup error: `imports` only accepts modules. |
+| `exports: [X]` but X isn't in `providers` (or an imported module) | Startup error: you can't lend what you don't have. |
+| Instead of importing, adding `CoffeesService` to `CoffeeRatingModule.providers` too | Starts fine, but now there are **two** `CoffeesService` objects with separate state (Q2 below). Its own dependencies must also be re-listed. |
+| Exporting controllers | Makes no sense. Controllers are never injected into anything; they're entry points. |
+| Exporting everything "just in case" | The module has no private parts left, so any change can break someone. Keep `exports` small: it's the module's public API. |
+
+**Two more things you'll see soon:**
+- `imports` also accepts **configured modules**: `TypeOrmModule.forRoot({...})`, `ConfigModule.forRoot()` (dynamic modules, course lesson38).
+- `providers` also accepts **objects** instead of classes: `{ provide: 'API_KEY', useValue: 'abc' }` (custom providers, course lesson32–37).
+
 ### 3.5 Controllers: from decorators to Express routes
 
 ```ts

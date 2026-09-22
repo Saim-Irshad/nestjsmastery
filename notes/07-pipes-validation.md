@@ -185,6 +185,42 @@ What changed (read the diff; these were practice tasks 1–3):
 - **Whitelisting is defense in depth, not the only defense.** Still copy explicit fields when writing to the DB (`{ name: dto.name, email: dto.email }`), because one day someone will add `role` to the DTO for an admin endpoint and reuse it.
 - **DTOs double as documentation.** Swagger (course lesson58–60) reads the same classes to generate API docs.
 
+### 6.1 "But DTO and entity are the same, why duplicate?" (asked 2026-09-22)
+
+The mistake that triggered this: `export class CreateCoffeeDto extends PartialType(Coffee) {}` → every POST returned
+**400 "property name should not exist"**. `Coffee`'s `@Column()` decorators are **TypeORM** metadata; `class-validator`
+keeps a **separate** list of rules, and that list was empty, so `whitelist` treated every field as unknown.
+(Without `forbidNonWhitelisted` it would be worse: 201 with an empty row, all fields silently stripped.)
+
+The deeper answer: **DRY means one source of truth for a piece of knowledge, not for anything that looks alike.**
+
+| | Entity (`Coffee`) | DTO (`CreateCoffeeDto`) |
+|---|---|---|
+| Changes when... | the **database** changes | the **API contract** changes |
+| Decorators | TypeORM `@Column`, `@ManyToMany` | class-validator `@IsString` |
+| Contains | `id`, `createdAt`, `passwordHash`, `ownerId`, relations | only what a client may send |
+
+They look identical for about two lessons. In course lesson23 they split for real:
+
+```ts
+// entity: flavors are ROWS with ids
+@ManyToMany(() => Flavor, (flavor) => flavor.coffees, { cascade: true })
+flavors: Flavor[];
+@Column({ default: 0 }) recommendations: number;    // internal counter
+
+// DTO: the client sends plain strings, and must never set `recommendations`
+@IsString({ each: true }) flavors: string[];
+```
+
+Costs of coupling them: a DB rename becomes a breaking API change; every new column becomes client-settable
+(mass assignment, section 5); API versioning becomes impossible; internal columns leak into public docs.
+Cost of separation: ~6 lines per feature that rarely change.
+
+**Legitimate ways to reduce duplication:**
+1. Compose DTOs from DTOs with `@nestjs/mapped-types`: `PartialType`, `PickType`, `OmitType`, `IntersectionType`.
+2. Put class-validator decorators **on the entity** and use it as a DTO: technically fine (both metadata systems coexist),
+   common in prototypes, but you trade away everything in the table above. Hard to undo once clients depend on the shape.
+
 ## 7. 🔗 Connects to
 - [02 — Classes](02-js-classes-objects-this.md): runtime vs compile time, `extends`, decorators as functions
 - [03 — DI](03-modules-controllers-providers-di.md): `design:paramtypes` powers both DI and `metatype`

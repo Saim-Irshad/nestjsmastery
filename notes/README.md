@@ -22,8 +22,8 @@
 | 05 | [Exception Filters](05-exception-filters.md) | status codes, error contracts, crashes | ✅ |
 | 06 | [Interceptors](06-interceptors.md) | RxJS just enough, response envelopes, timeouts, caching leaks | ✅ |
 | 07 | [Pipes & Validation](07-pipes-validation.md) | trust boundary, mass assignment, runtime vs compile-time types | ✅ |
-| 08 | REST & HTTP (course 1–12) | status codes, PUT vs PATCH, idempotency, pagination | ⏭️ next |
-| 09 | Database, Docker & TypeORM | ORMs, containers, connection pools | ⬜ |
+| 08 | REST & HTTP (course 1–12) | status codes, PUT vs PATCH, idempotency, pagination | ⬜ |
+| 09 | [Database, Docker & TypeORM](09-database-docker-typeorm.md) | containers vs VMs, images/layers, volumes · ORMs, repositories, real SQL, pools | ✅ |
 | 10 | Relations & Pagination | foreign keys, N+1, offset vs cursor | ⬜ |
 | 11 | Transactions, Indexes & Migrations | ACID, races, how indexes work | ⬜ |
 | 12 | Custom Providers | depending on abstractions | ⬜ |
@@ -39,6 +39,7 @@ Which course lesson feeds which note: [course-map.md](course-map.md).
 
 Extras:
 - [mistakes-and-aha.md](mistakes-and-aha.md): quiz answers I got wrong, "aha" moments, corrections
+- [session-log.md](session-log.md): what I built each session, what broke, what is still open
 - [_template.md](_template.md): the shape every topic note follows
 
 ---
