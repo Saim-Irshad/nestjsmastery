@@ -1,7 +1,7 @@
 # 2026-09-22 · Relations: coffee ↔ flavors
 
 > **Branch:** `relations` (from `main` at b9f11f3)
-> **Course:** videos 26–28 · **Note:** [10 Relations](../10-relations.md)
+> **Course:** videos 26–29 · **Note:** [10 Relations](../10-relations.md)
 
 ## What I built
 
@@ -12,6 +12,8 @@
   reusing the existing one when it's already there.
 - **`create` and `updateById`** now translate the words into rows before saving, and `findAll` asks for the
   flavors with `relations: { flavor: true }`.
+- **Pagination** (video 29): `PaginationQueryDto` in `src/common/dto/` with `limit` and `offset`,
+  `@Query()` on the controller, `skip`/`take` in the service → `LIMIT`/`OFFSET` in the SQL.
 
 ## The idea, in one picture
 
@@ -33,6 +35,7 @@ The word "vanilla" is stored once and shared.
 | `Type 'string' is not assignable to type 'Flavor'` (3 errors) | The DTO still said flavors are words; the entity now says they're rows | translate in the service (`findOrCreateFlavor`) instead of passing the body straight through |
 | `Type 'string[]' has no properties in common with 'FindOptionsRelations<Coffee>'` | `relations` wants an object, not a list of names | `relations: { flavor: true }` |
 | `Flavor` had `@PrimaryColumn()` | that means *I* supply every id, but the service creates flavors from a name alone | `@PrimaryGeneratedColumn()` |
+| generated file landed in a folder literally named `pagination-query.dto.ts` | `nest g` path typo | moved to `src/common/dto/pagination-query.dto.ts`, imports updated |
 | `POST` with `"flavor": "vanilla"` (text, not a list) → **500** | `@IsString({ each: true })` is a rule about the ITEMS of a list. It never says "this must be a list", so a plain string passed the check, then the service did `"vanilla".map(...)` → `TypeError: .map is not a function` | added `@IsArray()`. Now it's a 400, not a crash |
 
 **How to read those walls of TypeScript errors** (worth keeping): read the **last line** first — that's the real
@@ -54,9 +57,10 @@ where. Then open both types and compare that one field. Fix the first error, rec
 ## Still open
 
 1. `deleteById` returns `{ affected: 1 }` instead of the deleted coffee.
-2. No pagination anywhere (lesson 26 next: `take` / `skip`).
+2. Pagination holes: `@IsPositive()` rejects `?offset=0` (should be `@Min(0)`), and `limit` has no maximum
+   and no default, so sending no parameters still fetches the whole table.
 3. Decide whether to rename `flavor` → `flavors` and `coffee` → `coffees` (they're lists).
 4. Practice tasks in [note 10](../10-relations.md): prove the sharing, break a foreign key on purpose, count
    queries with `logging: true`, add `GET /flavor`.
 5. The old json `flavor` column was dropped when the app restarted: a live demo of why `synchronize: true`
-   is banned in production (lesson 29 replaces it with migrations).
+   is banned in production (video 32 replaces it with migrations).

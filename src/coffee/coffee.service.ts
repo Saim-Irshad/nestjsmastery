@@ -15,7 +15,7 @@ import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 import { NotFoundException } from '@nestjs/common';
 import { Flavor } from './entity/flavor.entity';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto.ts/pagination-query.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class CoffeeService {
@@ -84,8 +84,7 @@ export class CoffeeService {
   // (it goes over the network to the container). `await` lets Node serve other
   // requests while we wait. See notes/04.
   async findAll(paginationQuery: PaginationQueryDto) {
-    // Runs: SELECT id, name, brand, flavor FROM coffee
-    //
+    // `relations: { flavor: true }` = "also bring each coffee's flavors".
     // Without it you get the coffees alone, with no flavor field at all: the
     // flavors live in another table, and fetching them is extra work, so
     // TypeORM only does it when asked.
@@ -93,6 +92,18 @@ export class CoffeeService {
     // Behind the scenes it stops being one simple SELECT. It now has to walk
     // coffee → coffee_flavors → flavor and stitch the rows back together
     // (a JOIN). That's why you ask per query instead of getting it always.
+    // skip/take become LIMIT and OFFSET in the SQL:
+    //   SELECT ... FROM coffee LIMIT 10 OFFSET 20
+    //   skip = how many rows to jump over, take = how many to return
+    //
+    // ⚠️ If the client sends neither, both are undefined and this goes back to
+    // "give me the whole table". A real API applies a default (say 20) and a
+    // maximum, so nobody can ask for a million rows.
+    //
+    // ⚠️ OFFSET has a hidden cost: to skip 100,000 rows the database still
+    // walks past them. Deep pages get slower and slower. Feeds and infinite
+    // scroll use "give me the 20 after id X" instead (cursor paging), which
+    // stays fast at any depth.
     return await this.coffeeRepositery.find({
       relations: { flavor: true },
       skip: paginationQuery.offset,

@@ -19,7 +19,7 @@ import {
 import { CoffeeService } from './coffee.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto.ts/pagination-query.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 // Every route below starts with /coffee
 @Controller('coffee')
@@ -27,7 +27,15 @@ export class CoffeeController {
   // Nest creates the service and hands it over (same as UserController).
   constructor(private readonly coffeeService: CoffeeService) {}
 
-  // GET /coffee
+  // GET /coffee?limit=10&offset=0
+  //
+  // @Query() with no name hands over the WHOLE query string as one object,
+  // and because it's typed as PaginationQueryDto, the same checker that
+  // guards request bodies also guards the URL: ?limit=abc → 400, and the text
+  // "10" is turned into the number 10 before it reaches us.
+  //
+  // @Query('name') (one name, like in the user controller) gives a single
+  // value instead, with no class and therefore no checks.
   @Get()
   findAll(@Query() paginationQuery: PaginationQueryDto) {
     return this.coffeeService.findAll(paginationQuery);

@@ -150,6 +150,50 @@ If any one fails, `Promise.all` throws, so you never save a coffee with half its
 | `[]` | `[]` | remove all flavors |
 | `["vanilla"]` | `[row]` | replace with this list |
 
+## 5b. Pagination (video 29)
+
+`find()` with nothing else means **"give me every row"**. Fine with 20 rows in dev; with 2 million it loads
+them all into memory, and since one thread serves everyone (note 04), **every other user waits** while it does.
+
+So list endpoints take two numbers:
+
+```
+GET /coffee?limit=10&offset=0    → rows 1–10
+GET /coffee?limit=10&offset=10   → rows 11–20
+```
+
+```ts
+// src/common/dto/pagination-query.dto.ts   ← common/, because it isn't about coffee
+export class PaginationQueryDto {
+  @IsPositive() @IsOptional() @Type(() => Number) offset: number;
+  @IsPositive() @IsOptional() @Type(() => Number) limit: number;
+}
+
+// controller: @Query() with no name = the whole query string as one object
+findAll(@Query() paginationQuery: PaginationQueryDto) { ... }
+
+// service
+this.coffeeRepositery.find({ skip: paginationQuery.offset, take: paginationQuery.limit });
+//                            ↑ SQL OFFSET              ↑ SQL LIMIT
+```
+
+**Everything in a URL is text.** `?limit=10` arrives as `"10"`. `@Type(() => Number)` converts it first,
+then the rules run (it works because `transform: true` is on in `main.ts`). Without the conversion,
+`@IsPositive()` would be checking a string.
+
+**Two holes in our current version:**
+
+1. `@IsPositive()` means "> 0", so **`?offset=0` is rejected** — and offset 0 is the first page.
+   Use `@Min(0)` for offset; keep `@IsPositive()` (or `@Min(1)`) for limit.
+2. **Nothing caps `limit`.** `?limit=1000000` undoes the whole point. Real APIs cap it (`@Max(100)`) and
+   apply a default when the client sends nothing, so "no parameters" never means "the entire table".
+
+**The deeper problem with offset** (worth knowing before you ever need it): to skip 100,000 rows the database
+still walks past them, so page 5,000 is much slower than page 1. And if someone inserts a row while a user
+is paging, rows shift and an item can appear twice or be skipped. Feeds and infinite scroll use
+**cursor paging** instead: "give me the 20 after id X", which stays fast at any depth and doesn't shift.
+Offset paging is fine for admin tables with page numbers.
+
 ## 6. ❌ How NOT to do it
 
 | Don't | What goes wrong |
