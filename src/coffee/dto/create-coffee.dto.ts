@@ -17,7 +17,7 @@
 // Why not reuse the entity anyway: notes/07-pipes-validation.md §6.1
 // ============================================================================
 
-import { IsOptional, IsString } from 'class-validator';
+import { IsArray, IsOptional, IsString } from 'class-validator';
 
 export class CreateCoffeeDto {
   // "must be text, and must be present"
@@ -33,6 +33,13 @@ export class CreateCoffeeDto {
   // @IsOptional() = "skip all checks if this field wasn't sent".
   // Without it, the `?` above means nothing at runtime (TypeScript is gone by
   // then), so a body without `flavor` would be rejected.
+  //
+  // ⚠️ This STAYS `string[]` even though a coffee now holds flavor ROWS.
+  // Clients send words they know ("vanilla"), not database ids they don't.
+  // The service turns the words into rows (findOrCreateFlavor). This is the
+  // point where the request shape and the database shape stop matching, which
+  // is exactly why they're separate classes (notes/07 §6.1).
+  @IsArray()
   @IsString({ each: true })
   @IsOptional()
   flavor?: string[];

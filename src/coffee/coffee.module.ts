@@ -7,6 +7,7 @@ import { CoffeeController } from './coffee.controller';
 import { CoffeeService } from './coffee.service';
 import { Coffee } from './entity/coffee.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Flavor } from './entity/flavor.entity';
 
 @Module({
   // "Build the helper object for the coffee table and make it available in
@@ -19,7 +20,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
   //
   // Another module that needs coffee data adds this same line; the helper is
   // cheap to make, and the connection stays shared.
-  imports: [TypeOrmModule.forFeature([Coffee])],
+  imports: [TypeOrmModule.forFeature([Coffee, Flavor])],
 
   // The URLs this module answers.
   controllers: [CoffeeController],

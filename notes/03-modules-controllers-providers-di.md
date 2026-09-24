@@ -104,7 +104,7 @@ Order in `providers: [...]` doesn't matter. The dependency graph decides.
 
 A provider is **private to its module unless exported**, like a file where only `export`ed functions can be imported.
 
-### 3.4b The four keys of `@Module({...})`, in depth (course lesson12 · lesson31)
+### 3.4b The four keys of `@Module({...})`, in depth (course lesson18 · lesson34)
 
 The VS Code tooltip shows `controllers?: Type<any>[]`. Reading that type:
 - `ModuleMetadata`: the name of the **shape of the object** you pass to `@Module(...)`. It only has these 4 keys.
@@ -141,7 +141,7 @@ export { coffeesService };                     // exports
 import { coffeesService } from './coffees.module';   // imports: [CoffeesModule]
 ```
 
-**Real example from the course (lesson31, CoffeeRatingModule):**
+**Real example from the course (lesson34, CoffeeRatingModule):**
 
 ```ts
 // coffees.module.ts
@@ -172,8 +172,8 @@ Remove ① **or** ② and startup fails with `Nest can't resolve dependencies of
 | Exporting everything "just in case" | The module has no private parts left, so any change can break someone. Keep `exports` small: it's the module's public API. |
 
 **Two more things you'll see soon:**
-- `imports` also accepts **configured modules**: `TypeOrmModule.forRoot({...})`, `ConfigModule.forRoot()` (dynamic modules, course lesson38).
-- `providers` also accepts **objects** instead of classes: `{ provide: 'API_KEY', useValue: 'abc' }` (custom providers, course lesson32–37).
+- `imports` also accepts **configured modules**: `TypeOrmModule.forRoot({...})`, `ConfigModule.forRoot()` (dynamic modules, course lesson41).
+- `providers` also accepts **objects** instead of classes: `{ provide: 'API_KEY', useValue: 'abc' }` (custom providers, course lesson35–40).
 
 ### 3.5 Controllers: from decorators to Express routes
 

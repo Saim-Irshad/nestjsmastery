@@ -5,9 +5,21 @@
 // back. Nest turns that into JSON. No database code here on purpose.
 // ============================================================================
 
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  ParseIntPipe,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { CoffeeService } from './coffee.service';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
+import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto.ts/pagination-query.dto';
 
 // Every route below starts with /coffee
 @Controller('coffee')
@@ -17,8 +29,14 @@ export class CoffeeController {
 
   // GET /coffee
   @Get()
-  findAll() {
-    return this.coffeeService.findAll();
+  findAll(@Query() paginationQuery: PaginationQueryDto) {
+    return this.coffeeService.findAll(paginationQuery);
+  }
+
+  // GET /coffee/:id
+  @Get('/:id')
+  findById(@Param('id', ParseIntPipe) id: number) {
+    return this.coffeeService.findById(id);
   }
 
   // POST /coffee   body: { "name": "Latte", "brand": "Sbux", "flavor": ["vanilla"] }
@@ -38,4 +56,17 @@ export class CoffeeController {
   //   @Patch('/:id')  → updateById(id, dto)
   //   @Delete('/:id') → deleteById(id)
   // Note PATCH, not PUT: we're changing some fields, not replacing the coffee.
+
+  @Patch('/:id')
+  updateById(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCoffeeDto: UpdateCoffeeDto,
+  ) {
+    return this.coffeeService.updateById(id, updateCoffeeDto);
+  }
+
+  @Delete('/:id')
+  deleteById(@Param('id', ParseIntPipe) id: number) {
+    return this.coffeeService.deleteById(id);
+  }
 }

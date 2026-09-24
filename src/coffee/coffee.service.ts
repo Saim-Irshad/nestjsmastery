@@ -14,6 +14,8 @@ import { Coffee } from './entity/coffee.entity';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
 import { NotFoundException } from '@nestjs/common';
+import { Flavor } from './entity/flavor.entity';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto.ts/pagination-query.dto';
 
 @Injectable()
 export class CoffeeService {
@@ -41,18 +43,61 @@ export class CoffeeService {
   constructor(
     @InjectRepository(Coffee)
     private readonly coffeeRepositery: Repository<Coffee>,
+
+    @InjectRepository(Flavor)
+    private readonly flavorRepositery: Repository<Flavor>,
   ) {}
+
+  // --------------------------------------------------------------------------
+  // THE TRANSLATOR: one word → one flavor row
+  // --------------------------------------------------------------------------
+  // The client sends words:            ["vanilla", "nutty"]
+  // A coffee now holds rows:           [{ id: 3, name: "vanilla" }, ...]
+  // Something has to turn one into the other. This is it.
+  //
+  // "vanilla" already in the flavor table → reuse that exact row. That's the
+  // whole point of a separate flavor table: the word is stored ONCE and shared
+  // by every coffee, so renaming it fixes every coffee at the same time.
+  //
+  // Why is this in the coffee service? Because "create a coffee" is the job,
+  // and looking up its flavors is part of doing that job. If flavors ever get
+  // their own routes (list them, rename one), they get their own service and
+  // this moves there.
+  //
+  // `private` = only this class uses it. It's a helper, not part of the API.
+  private async findOrCreateFlavor(name: string): Promise<Flavor> {
+    const existingFlavor = await this.flavorRepositery.findOne({
+      where: { name },
+    });
+    if (existingFlavor) {
+      return existingFlavor; // found → reuse that row
+    }
+
+    // Not there yet. Build one in memory ONLY (create never writes).
+    // It gets inserted when the coffee is saved, because the relation in
+    // coffee.entity.ts has `cascade: true`. Without that option, saving the
+    // coffee would fail: "you're attaching a flavor that doesn't exist".
+    return this.flavorRepositery.create({ name });
+  }
 
   // Every method here is `async` because talking to the database takes time
   // (it goes over the network to the container). `await` lets Node serve other
   // requests while we wait. See notes/04.
-  async findAll() {
+  async findAll(paginationQuery: PaginationQueryDto) {
     // Runs: SELECT id, name, brand, flavor FROM coffee
     //
-    // ⚠️ No limit. With 3 rows that's fine; with 2 million it loads them all
-    // into memory and freezes everyone (course lesson26 adds pagination:
-    // this.coffeeRepositery.find({ take: limit, skip: offset })).
-    return await this.coffeeRepositery.find();
+    // Without it you get the coffees alone, with no flavor field at all: the
+    // flavors live in another table, and fetching them is extra work, so
+    // TypeORM only does it when asked.
+    //
+    // Behind the scenes it stops being one simple SELECT. It now has to walk
+    // coffee → coffee_flavors → flavor and stitch the rows back together
+    // (a JOIN). That's why you ask per query instead of getting it always.
+    return await this.coffeeRepositery.find({
+      relations: { flavor: true },
+      skip: paginationQuery.offset,
+      take: paginationQuery.limit,
+    });
   }
 
   async findById(id: number) {
@@ -81,13 +126,25 @@ export class CoffeeService {
   }
 
   async updateById(id: number, updateCoffeeDto: UpdateCoffeeDto) {
+    // Only translate if the client actually sent flavors. Three different
+    // meanings that must stay apart on an update:
+    //   field missing → undefined → leave the coffee's flavors alone
+    //   []            → []        → remove all its flavors
+    //   ["vanilla"]   → [row]     → replace them with this list
+    const flavors = updateCoffeeDto.flavor
+      ? await Promise.all(
+          updateCoffeeDto.flavor.map((name) => this.findOrCreateFlavor(name)),
+        )
+      : undefined;
     // preload = "fetch row #id, then paste these changes on top of it".
     // It runs a SELECT and gives back the full coffee with the new values,
     // or undefined if that id doesn't exist. Nothing is written yet.
     const coffee = await this.coffeeRepositery.preload({
-      id: +id,
-      ...updateCoffeeDto,
+      ...updateCoffeeDto, // everything the client sent (flavor still = words)
+      id, // which row to load
+      flavor: flavors, // ...but swap the words for the real rows
     });
+
     if (!coffee) {
       throw new NotFoundException(`Coffee #${id} not found`);
     }
@@ -96,14 +153,42 @@ export class CoffeeService {
     // client gets {"generatedMaps":[],"raw":[],"affected":1} instead of the
     // coffee. We already hold the full row, so `save(coffee)` is the right
     // call: it writes and returns the updated coffee. It will also matter in
-    // lesson25, where save() handles linked rows and update() doesn't.
-    return await this.coffeeRepositery.update(id, coffee);
+    // lesson28, where save() handles linked rows and update() doesn't.
+    return await this.coffeeRepositery.save(coffee);
   }
 
   async create(createCoffeeDto: CreateCoffeeDto) {
-    // create() does NOT touch the database. It just builds a Coffee object in
-    // memory from the plain body (so defaults and hooks apply).
-    const coffeeEntity = this.coffeeRepositery.create(createCoffeeDto);
+    // Turn every word into a flavor row.
+    //
+    // `.map` with an async function does NOT give you flavors. It gives you a
+    // list of promises, one unfinished database trip per name:
+    //   ["vanilla","nutty"] → [Promise, Promise]
+    // `Promise.all` waits for all of them and hands back the results in order:
+    //   [Promise, Promise] → [{id:3,...}, {id:5,...}]
+    //
+    // Why not a plain loop with await inside? A loop asks, waits, asks, waits:
+    // 3 flavors × 5ms = 15ms. This sends all the questions at once and waits
+    // for the slowest: 5ms. Harmless with 3 items, painful with 50, and
+    // "await inside a loop" is one of the most common causes of slow endpoints.
+    // If any one of them fails, the whole thing throws, which is what we want:
+    // no coffee saved with half its flavors.
+    //
+    // `?? []` covers the client not sending flavors at all.
+    const flavors = await Promise.all(
+      (createCoffeeDto.flavor ?? []).map((name) =>
+        this.findOrCreateFlavor(name),
+      ),
+    );
+
+    // "Everything the client sent, except swap the words for the rows."
+    // Passing `createCoffeeDto` straight in is what TypeScript was rejecting:
+    //   DTO says    flavor?: string[]     (what a client may send)
+    //   Coffee says flavor?: Flavor[]     (what the database holds)
+    // create() still only builds an object in memory; save() writes.
+    const coffeeEntity = this.coffeeRepositery.create({
+      ...createCoffeeDto,
+      flavor: flavors,
+    });
 
     // save() is the one that writes:
     //   INSERT INTO coffee (name, brand, flavor) VALUES ($1,$2,$3) RETURNING id

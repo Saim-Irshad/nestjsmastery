@@ -1,7 +1,7 @@
 # 09 — Database, Docker & TypeORM
 
 > 📍 **Where on the Big Map:** below the Service layer. The service asks the ORM, the ORM talks to Postgres, and Postgres runs inside a Docker container.
-> 📘 **Official course:** lesson17 Before we start · lesson18 Docker · lesson19 Running PostgreSQL · lesson20 TypeORM Module · lesson21 Entity · lesson22 Repository (Part B)
+> 📘 **Official course:** lesson23 Before we start · lesson24 Docker · lesson25 Running PostgreSQL · lesson26 TypeORM Module · lesson27 Entity · lesson28 Repository (Part B)
 
 ```
  Controller → Service → TypeORM repository (Part B) → network → Postgres  ← inside a Docker container (Part A)
@@ -218,7 +218,7 @@ volumes:
 
 - **Containers are disposable, state is not.** Same rule as note 04 (stateless services): the container can die at any time; anything important must live in a volume or a managed database.
 - **Dev/prod parity.** The point of Docker is that dev, CI and prod run the *same* image. Pinned tags make that real.
-- **In production, databases often aren't in containers you manage.** Teams use managed services (AWS RDS, Cloud SQL, Neon) that handle backups, failover and upgrades. Docker is still perfect for local dev and for **test databases in CI** (course lesson67 sets up a test DB).
+- **In production, databases often aren't in containers you manage.** Teams use managed services (AWS RDS, Cloud SQL, Neon) that handle backups, failover and upgrades. Docker is still perfect for local dev and for **test databases in CI** (course lesson70 sets up a test DB).
 - **Config comes from the environment.** `POSTGRES_PASSWORD` is the "12-factor" idea: the same image, configured by env vars per environment. Your Nest app will do the same with `ConfigModule` (lessons 41–47).
 - **What's next at scale:** Compose runs containers on **one** machine. Kubernetes (and similar) runs them across **many** machines, restarts them, and scales them. Same image/container ideas.
 
@@ -517,7 +517,7 @@ Three things to take from that table:
 | Returns | the entity | `UpdateResult` |
 | Loads the row first | yes (knows what changed) | no |
 | Runs entity hooks / cascades to relations | yes | **no** |
-| Good for | normal updates, relations (lesson 25) | bulk/simple column updates (`update({}, { recommendations: 0 })`) |
+| Good for | normal updates, relations (lesson31) | bulk/simple column updates (`update({}, { recommendations: 0 })`) |
 
 ### 3.6 The connection pool
 
@@ -541,30 +541,30 @@ so other requests keep being served. It also means **slow queries block the pool
 Two things to fix (see Practice):
 - **`updateById` returns `UpdateResult`, not the coffee.** It does `preload(...)` (a SELECT) and then `update(id, coffee)`,
   so the client gets `{"generatedMaps":[],"raw":[],"affected":1}`. Use `return this.coffeeRepositery.save(coffee)`:
-  the row is already loaded, and `save` returns the updated entity (and handles relations later in lesson 25).
-- **`findAll()` has no pagination.** Fine with 3 rows, fatal with 3 million (lesson 26).
+  the row is already loaded, and `save` returns the updated entity (and handles relations later in lesson31).
+- **`findAll()` has no pagination.** Fine with 3 rows, fatal with 3 million (lesson32).
 
 ## 5. ❌ How NOT to do it
 
 | Don't | What goes wrong |
 |---|---|
 | `repo.create(dto)` and expect it saved | Nothing was written. `create` is memory-only; `save` writes. |
-| Use `find()` with no `take`/`skip` on a growing table | One request pulls the whole table into RAM and can take the app down. Always paginate (lesson 26). |
+| Use `find()` with no `take`/`skip` on a growing table | One request pulls the whole table into RAM and can take the app down. Always paginate (lesson32). |
 | `update()` when you need the updated entity or relation cascades | You get `UpdateResult`, and related rows aren't touched. |
 | Assume `findOne` throws when missing | It returns `null`. Check and throw `NotFoundException` yourself (your `findById` does this ✅). |
 | Build SQL with template strings (`WHERE id = ${id}`) | SQL injection. Repositories/QueryBuilder parameterize for you. |
 | Return entities straight to the client forever | Internal columns (`passwordHash`, `ownerId`) leak. Map to a response shape (note 07 §6.1). |
 | Loop `await repo.save(x)` over 1000 items | 1000 round trips. Pass an array: `repo.save(items)` (one batched call). |
-| Leave `synchronize: true` outside local dev | It rewrites the schema to match entities: a rename can **drop a column with its data** (lesson 29: migrations). |
+| Leave `synchronize: true` outside local dev | It rewrites the schema to match entities: a rename can **drop a column with its data** (lesson32: migrations). |
 | Forget `forFeature` in the feature module | `Nest can't resolve dependencies of the CoffeeService (?)` at startup. |
 
 ## 6. 🧠 Senior engineer lens
 
-- **An ORM is a leaky abstraction.** It writes SQL for you, but you own the SQL. Keep `logging: true` on in dev, read the queries, and learn to spot `SELECT` with no `LIMIT`, missing indexes (lesson 28), and N+1 (lesson 24).
-- **The repository is a seam.** Your service depends on "something with `find`/`save`", so unit tests inject a fake with `getRepositoryToken(Coffee)` and never touch a database (lesson 65). That's DI paying off again (note 03).
+- **An ORM is a leaky abstraction.** It writes SQL for you, but you own the SQL. Keep `logging: true` on in dev, read the queries, and learn to spot `SELECT` with no `LIMIT`, missing indexes (lesson31), and N+1 (lesson30).
+- **The repository is a seam.** Your service depends on "something with `find`/`save`", so unit tests inject a fake with `getRepositoryToken(Coffee)` and never touch a database (lesson68). That's DI paying off again (note 03).
 - **The database is usually the bottleneck**, not Node. Pool size, slow queries and missing indexes decide your throughput long before your JS does.
 - **Entity ≠ API model ≠ domain model.** They start identical and drift. Keeping the DTO separate (note 07 §6.1) is what lets the DB change without breaking clients.
-- **Anything that must happen together needs a transaction** (lesson 27). Two `save()` calls in a row are two independent writes: a crash in between leaves half-written data.
+- **Anything that must happen together needs a transaction** (lesson30). Two `save()` calls in a row are two independent writes: a crash in between leaves half-written data.
 
 ## 7. 🔗 Connects to
 - [03 — DI](03-modules-controllers-providers-di.md): tokens, `useFactory`, why generics can't be injected
@@ -580,7 +580,7 @@ Two things to fix (see Practice):
 1. **See the SQL.** Add `logging: true` to `forRoot`, restart, and hit every coffee route. Match each request to its query.
 2. **Fix `updateById`** so the API returns the updated coffee (one-line change, section 4). Confirm with Thunder Client.
 3. **`create` without `save`.** Comment out the `save` line, POST a coffee, then `GET /coffee`. Where did it go?
-4. **Paginate `findAll`**: accept `?limit=10&offset=0` and pass `{ take, skip }`. What SQL appears? (Compare with lesson 26.)
+4. **Paginate `findAll`**: accept `?limit=10&offset=0` and pass `{ take, skip }`. What SQL appears? (Compare with lesson32.)
 5. **Unit-test the service with a fake repo**, no database:
    ```ts
    { provide: getRepositoryToken(Coffee), useValue: { find: jest.fn(), findOne: jest.fn() } }
@@ -632,7 +632,7 @@ Two things to fix (see Practice):
 
 <details><summary>Answer</summary>
 
-**B.** Verified against our DB. `save(coffee)` returns the entity instead. Also `update()` skips cascades, which will matter once coffees have flavors (lesson 25).
+**B.** Verified against our DB. `save(coffee)` returns the entity instead. Also `update()` skips cascades, which will matter once coffees have flavors (lesson31).
 
 </details>
 

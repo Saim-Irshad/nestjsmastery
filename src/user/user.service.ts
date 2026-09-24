@@ -180,7 +180,7 @@ export class UserService {
 
 // The shape of a stored user. `email?` = optional, because the seed users
 // above were created before email existed. (With a real DB, this would be an
-// entity class: course lesson21, "Creating a TypeORM Entity".)
+// entity class: course lesson24, "Creating a TypeORM Entity".)
 export interface User {
   id: number;
   name: string;

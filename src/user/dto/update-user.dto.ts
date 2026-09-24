@@ -33,6 +33,6 @@ import { CreateUserDto } from './create-user.dto';
 //
 // It also changes the TypeScript type: name?: string, email?: string.
 //
-// (Official course: lesson14.mp4, "Validate Input Data with Data Transfer Objects")
+// (Official course: lesson17.mp4, "Validate Input Data with Data Transfer Objects")
 // ---------------------------------------------------------------------------
 export class UpdateUserDto extends PartialType(CreateUserDto) {}

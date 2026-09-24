@@ -1,19 +1,15 @@
-# Session Log
+# 2026-09-22 · Postgres in Docker + first TypeORM entity
 
-What happened each working session: what I built, what broke, what's still open.
-Notes explain *concepts*; this file records *this project's history*.
-
----
-
-## 2026-09-19 → 2026-09-22 · Postgres in Docker + first real database table
+> **Branch:** `sql` → merged into `main` (commit b9f11f3)
+> **Course:** videos 20–25 · **Notes:** [09 Database, Docker & TypeORM](../09-database-docker-typeorm.md)
 
 ### What I built
 
-- **Postgres running in Docker** (`docker-compose.yaml`), course lessons 17–19.
+- **Postgres running in Docker** (`docker-compose.yaml`), course videos 20–22.
   Docker Desktop was installed but the `docker` command wasn't found: its program lives in
   `~/.docker/bin`, which wasn't on the shell's search path. Fixed by adding one line to `~/.zshrc`.
-- **Nest connected to it**, course lesson 20: `TypeOrmModule.forRoot({...})` in `app.module.ts`.
-- **The coffee feature** (`src/coffee/`), course lessons 21–22:
+- **Nest connected to it**, course lesson 23: `TypeOrmModule.forRoot({...})` in `app.module.ts`.
+- **The coffee feature** (`src/coffee/`), course videos 24–25:
   - `entity/coffee.entity.ts`: the class that describes the table
   - `coffee.module.ts`: `TypeOrmModule.forFeature([Coffee])`
   - `coffee.service.ts`: findAll / findById / create / updateById / deleteById
@@ -56,7 +52,7 @@ Verified with `docker compose exec db psql -U postgres -c "\d coffee"`:
 ### Still open (my turn)
 
 1. `updateById` returns `{ affected: 1 }` instead of the coffee → use `save(coffee)` after `preload`.
-2. `findAll()` loads the whole table → add `take`/`skip` (course lesson 26).
+2. `findAll()` loads the whole table → add `take`/`skip` (course lesson 29).
 3. Missing routes: `GET /coffee/:id`, `PATCH /coffee/:id`, `DELETE /coffee/:id` (service methods already exist).
 4. `docker-compose.yaml`: no named place to keep data, so `down` + `up` empties the database. Also pin `postgres:18` and drop the obsolete `version:` line.
 5. Delete the leftover `this;` experiment line in `user.controller.ts`.
@@ -73,13 +69,3 @@ pnpm test                                               # 15 tests, no database 
 ```
 
 ---
-
-## 2026-09-15 → 2026-09-18 · Nest core (earlier sessions, summary)
-
-- Notes 01–07: Express vs Nest, JS classes and `this`, modules/DI, shared state and the event loop,
-  exception filters, interceptors, pipes and validation.
-- Fixed real bugs found by testing the running app: mass assignment (`isAdmin` was saved), updates
-  rejected because they inherited "email required", `/user/1abc` returning user 1.
-- Discovered the test setup had never worked (Nest 12 ships ES-module-only packages, Node 22 + Jest
-  needed ES-module mode). Tests run now.
-- Dependencies had been installed in the parent folder by mistake; moved into the project.

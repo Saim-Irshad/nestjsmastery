@@ -74,7 +74,7 @@ import { CoffeeModule } from './coffee/coffee.module';
       // make the table match a class. Rename `brand` in the entity and the
       // whole brand column can be dropped. Real projects turn this off and use
       // migration files instead: small, reviewed steps, committed to git
-      // (course lesson29).
+      // (course lesson32).
       synchronize: true,
     }),
     CoffeeModule,

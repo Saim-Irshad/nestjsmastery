@@ -24,7 +24,7 @@
 | 07 | [Pipes & Validation](07-pipes-validation.md) | trust boundary, mass assignment, runtime vs compile-time types | ✅ |
 | 08 | REST & HTTP (course 1–12) | status codes, PUT vs PATCH, idempotency, pagination | ⬜ |
 | 09 | [Database, Docker & TypeORM](09-database-docker-typeorm.md) | containers vs VMs, images/layers, volumes · ORMs, repositories, real SQL, pools | ✅ |
-| 10 | Relations & Pagination | foreign keys, N+1, offset vs cursor | ⬜ |
+| 10 | [Relations](10-relations.md) | join tables, foreign keys, N+1, Promise.all vs await-in-loop | ✅ |
 | 11 | Transactions, Indexes & Migrations | ACID, races, how indexes work | ⬜ |
 | 12 | Custom Providers | depending on abstractions | ⬜ |
 | 13 | Dynamic Modules & Scopes | cost of request scope | ⬜ |
@@ -39,7 +39,7 @@ Which course lesson feeds which note: [course-map.md](course-map.md).
 
 Extras:
 - [mistakes-and-aha.md](mistakes-and-aha.md): quiz answers I got wrong, "aha" moments, corrections
-- [session-log.md](session-log.md): what I built each session, what broke, what is still open
+- [sessions/](sessions/): one file per session — what I built, what broke, what is still open
 - [_template.md](_template.md): the shape every topic note follows
 
 ---

@@ -2,7 +2,7 @@
 
 > 📍 **Where on the Big Map:** the last gate before your controller method. After guards and the interceptors' before-part, run **once per argument** (`@Body`, `@Param`, `@Query`).
 > 🎥 **Video:** 00:38:04 – 00:43:08
-> 📘 **Official course:** lesson13 Intro to DTOs · lesson14 Validate Input with DTOs · lesson15 Handling Malicious Request Data · lesson16 Auto-transform Payloads · lesson55 Custom Pipes (video file numbers)
+> 📘 **Official course:** lesson19 Intro to DTOs · lesson20 Validate Input with DTOs · lesson21 Handling Malicious Request Data · lesson22 Auto-transform Payloads · lesson61 Custom Pipes (video file numbers)
 
 ## 1. The problem (why this exists)
 
@@ -108,7 +108,7 @@ Body sent: `{ "name": "hacker", "email": "h@x.com", "isAdmin": true }`
 - **`whitelist`**: only fields with at least one validation decorator survive.
 - **`forbidNonWhitelisted`**: instead of silently stripping, reject the request (clients learn about typos fast).
 - **`transform`**: the handler gets a real class instance, and typed primitives are converted (`@Param('id') id: number` gets `5`, not `"5"`).
-  Query DTOs with numbers also need `transformOptions: { enableImplicitConversion: true }` or `@Type(() => Number)` on the field (course lesson9 / lesson26, pagination).
+  Query DTOs with numbers also need `transformOptions: { enableImplicitConversion: true }` or `@Type(() => Number)` on the field (course lesson12 / lesson32, pagination).
 
 ### 3.5 Built-in pipes for single values
 
@@ -183,7 +183,7 @@ What changed (read the diff; these were practice tasks 1–3):
 - **Shape ≠ business rules.** Pipes answer "is this well-formed?" (string, min length, email format). Services answer "is this allowed?" (email unique, max 3 teams). The DB gives the final guarantee (constraints).
 - **Validation errors are a frontend contract.** A flat list of strings is hard to map onto form fields. Many teams use `exceptionFactory` to return `{ errors: { email: ['...'], name: ['...'] } }`.
 - **Whitelisting is defense in depth, not the only defense.** Still copy explicit fields when writing to the DB (`{ name: dto.name, email: dto.email }`), because one day someone will add `role` to the DTO for an admin endpoint and reuse it.
-- **DTOs double as documentation.** Swagger (course lesson58–60) reads the same classes to generate API docs.
+- **DTOs double as documentation.** Swagger (course lesson61–63) reads the same classes to generate API docs.
 
 ### 6.1 "But DTO and entity are the same, why duplicate?" (asked 2026-09-22)
 
@@ -200,7 +200,7 @@ The deeper answer: **DRY means one source of truth for a piece of knowledge, not
 | Decorators | TypeORM `@Column`, `@ManyToMany` | class-validator `@IsString` |
 | Contains | `id`, `createdAt`, `passwordHash`, `ownerId`, relations | only what a client may send |
 
-They look identical for about two lessons. In course lesson23 they split for real:
+They look identical for about two lessons. In course lesson29 they split for real:
 
 ```ts
 // entity: flavors are ROWS with ids
@@ -237,7 +237,7 @@ Cost of separation: ~6 lines per feature that rarely change.
 1. **Close the hole:** turn on `whitelist`, `forbidNonWhitelisted` and `transform` in `main.ts`. Re-send the `isAdmin` request. Then also copy explicit fields in `createUser` instead of `...dto`.
 2. **Fix updates:** make `PUT /user/1 {"name":"saim2"}` work while `{"name":"a"}` still fails.
 3. **`ParseIntPipe`:** apply it to `:id` routes and remove `parseInt` from the service (the service now takes `id: number`). Compare `/user/1abc` before and after.
-4. **Custom pipe** (course lesson55): write `ParsePositiveIntPipe` (section 3.1) and use it on `:id`. What does `/user/-1` return?
+4. **Custom pipe** (course lesson61): write `ParsePositiveIntPipe` (section 3.1) and use it on `:id`. What does `/user/-1` return?
 5. **Frontend-friendly errors:** use `exceptionFactory` to return `{ statusCode: 400, errors: { name: [...], email: [...] } }`.
 6. **Nested gotcha:** add `address: AddressDto` (`@IsString() city`) to `CreateUserDto`. Send `address: { city: 123 }` with and without `@ValidateNested()` + `@Type(() => AddressDto)`.
 
