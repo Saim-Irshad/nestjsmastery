@@ -9,7 +9,8 @@ Naming: `YYYY-MM-DD-topic.md`, newest first.
 | Date | Session | Branch | Course lessons |
 |---|---|---|---|
 | 2026-09-22 | [Postgres in Docker + first TypeORM entity](2026-09-22-postgres-docker-typeorm.md) | `sql` → `main` | 20–25 |
-| 2026-09-22 | [Relations: coffee ↔ flavors](2026-09-22-relations.md) | `relations` | 26–28 |
+| 2026-09-25 | [Transactions, indexes, migrations](2026-09-25-transactions-indexes-migrations.md) | `transactions` | 30–32 |
+| 2026-09-22 | [Relations: coffee ↔ flavors](2026-09-22-relations.md) | `relations` | 26–29 |
 
 ### Earlier (before this file existed)
 

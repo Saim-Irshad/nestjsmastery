@@ -25,15 +25,16 @@
 | 08 | REST & HTTP (course 1–12) | status codes, PUT vs PATCH, idempotency, pagination | ⬜ |
 | 09 | [Database, Docker & TypeORM](09-database-docker-typeorm.md) | containers vs VMs, images/layers, volumes · ORMs, repositories, real SQL, pools | ✅ |
 | 10 | [Relations](10-relations.md) | join tables, foreign keys, N+1, Promise.all vs await-in-loop | ✅ |
-| 11 | Transactions, Indexes & Migrations | ACID, races, how indexes work | ⬜ |
-| 12 | Custom Providers | depending on abstractions | ⬜ |
-| 13 | Dynamic Modules & Scopes | cost of request scope | ⬜ |
-| 14 | Configuration & Secrets | 12-factor config, fail fast | ⬜ |
-| 15 | Guards & Metadata | authentication vs authorization | ⬜ |
-| 16 | Middleware & Custom Decorators | Express middleware vs Nest layers | ⬜ |
-| 17 | API Docs (OpenAPI) | API contracts | ⬜ |
-| 18 | Testing | unit vs e2e, test doubles | ⬜ |
-| 19 | MongoDB & SQL vs NoSQL | data modeling trade-offs | ⬜ |
+| 11 | [Transactions](11-transactions.md) | all-or-nothing, pools, lost updates, outbox | ✅ |
+| 12 | [Indexes & Migrations](12-indexes-migrations.md) | how indexes work (measured), schema changes without data loss | ✅ |
+| 13 | Custom Providers | depending on abstractions | ⬜ |
+| 14 | Dynamic Modules & Scopes | cost of request scope | ⬜ |
+| 15 | Configuration & Secrets | 12-factor config, fail fast | ⬜ |
+| 16 | Guards & Metadata | authentication vs authorization | ⬜ |
+| 17 | Middleware & Custom Decorators | Express middleware vs Nest layers | ⬜ |
+| 18 | API Docs (OpenAPI) | API contracts | ⬜ |
+| 19 | Testing | unit vs e2e, test doubles | ⬜ |
+| 20 | MongoDB & SQL vs NoSQL | data modeling trade-offs | ⬜ |
 
 Which course lesson feeds which note: [course-map.md](course-map.md).
 

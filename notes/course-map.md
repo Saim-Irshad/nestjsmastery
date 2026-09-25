@@ -53,9 +53,9 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming ·
 | 27 | Retrieve Entities with their Relations | [10](10-relations.md) | ✅ |
 | 28 | Using Cascading Inserts and Updates | [10](10-relations.md) | ✅ |
 | 29 | Adding Pagination | 10 (next) | ⬜ |
-| 30 | Use Transactions | 11 Transactions, Indexes & Migrations | ⬜ |
-| 31 | Adding Indexes to Entities | 11 | ⬜ |
-| 32 | Setting up Migrations | 11 | ⬜ |
+| 30 | Use Transactions | [11](11-transactions.md) | ✅ note (code: practice) |
+| 31 | Adding Indexes to Entities | [12](12-indexes-migrations.md) | ✅ |
+| 32 | Setting up Migrations | [12](12-indexes-migrations.md) | ✅ |
 
 ## Ch.4 — Dependency Injection deep dive (videos 33–43)
 
