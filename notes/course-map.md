@@ -71,8 +71,8 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming ·
 
 | Video | Lesson | Note | |
 |---|---|---|---|
-| 44–49 | ConfigModule, custom env file paths, schema validation, ConfigService, custom config files, namespaces | 15 Configuration & Secrets | ⬜ |
-| 50 | Asynchronously Configure Dynamic Modules | 14 / 15 | ⬜ |
+| 44–49 | ConfigModule, custom env file paths, schema validation, ConfigService, custom config files, namespaces | [15](15-configuration.md) | ✅ |
+| 50 | Asynchronously Configure Dynamic Modules | [15](15-configuration.md) §3 step 8 | ✅ |
 
 ## Ch.6 — Other building blocks (videos 51–60)
 

@@ -30,7 +30,7 @@
 | 12 | [Indexes & Migrations](12-indexes-migrations.md) | how indexes work (measured), schema changes without data loss | ✅ |
 | 13 | [Custom Providers](13-custom-providers.md) | the container is a lookup table; useValue / useClass / useFactory / tokens | ✅ |
 | 14 | [Dynamic Modules & Scopes](14-dynamic-modules.md) | modules you can configure; singleton/transient/request and why scope bubbles | ✅ |
-| 15 | Configuration & Secrets | 12-factor config, fail fast | ⬜ |
+| 15 | [Configuration](15-configuration.md) | .env, validation at startup, typed namespaces, the import-order trap | ✅ |
 | 16 | Guards & Metadata | authentication vs authorization | ⬜ |
 | 17 | Middleware & Custom Decorators | Express middleware vs Nest layers | ⬜ |
 | 18 | API Docs (OpenAPI) | API contracts | ⬜ |
