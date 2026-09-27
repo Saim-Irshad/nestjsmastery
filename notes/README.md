@@ -15,6 +15,7 @@
 | # | Topic | Covers (beyond Nest) | Status |
 |---|---|---|---|
 | 00 | [Roadmap](00-roadmap.md) | the 20-day plan | 📌 |
+| — | [How to think before building](how-to-think-before-building.md) | the senior planning checklist, worked on the coffee feature | 📌 |
 | 01 | [Express vs Nest & Architecture](01-express-vs-nest-architecture.md) | how Express works inside, feature folders | ✅ |
 | 02 | [JS Classes, Objects & `this`](02-js-classes-objects-this.md) | memory, references, `new`, prototype, TS modifiers | ✅ |
 | 03 | [Modules, Controllers, Providers & DI](03-modules-controllers-providers-di.md) | decorators, DI container, singletons | ✅ |
@@ -27,8 +28,8 @@
 | 10 | [Relations](10-relations.md) | join tables, foreign keys, N+1, Promise.all vs await-in-loop | ✅ |
 | 11 | [Transactions](11-transactions.md) | all-or-nothing, pools, lost updates, outbox | ✅ |
 | 12 | [Indexes & Migrations](12-indexes-migrations.md) | how indexes work (measured), schema changes without data loss | ✅ |
-| 13 | Custom Providers | depending on abstractions | ⬜ |
-| 14 | Dynamic Modules & Scopes | cost of request scope | ⬜ |
+| 13 | [Custom Providers](13-custom-providers.md) | the container is a lookup table; useValue / useClass / useFactory / tokens | ✅ |
+| 14 | [Dynamic Modules & Scopes](14-dynamic-modules.md) | modules you can configure; singleton/transient/request and why scope bubbles | ✅ |
 | 15 | Configuration & Secrets | 12-factor config, fail fast | ⬜ |
 | 16 | Guards & Metadata | authentication vs authorization | ⬜ |
 | 17 | Middleware & Custom Decorators | Express middleware vs Nest layers | ⬜ |
@@ -39,6 +40,7 @@
 Which course lesson feeds which note: [course-map.md](course-map.md).
 
 Extras:
+- [glossary.md](glossary.md): every word the course uses, idea first, grouped by chapter, including chapters not reached yet
 - [mistakes-and-aha.md](mistakes-and-aha.md): quiz answers I got wrong, "aha" moments, corrections
 - [sessions/](sessions/): one file per session — what I built, what broke, what is still open
 - [_template.md](_template.md): the shape every topic note follows

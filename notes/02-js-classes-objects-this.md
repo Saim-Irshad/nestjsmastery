@@ -1,24 +1,34 @@
 # 02 — JS Classes, Objects & `this`
 
 > 📍 **Where on the Big Map:** under everything. Every controller, service, filter, interceptor, guard and pipe is a class.
-> 🎥 **Video:** used from 00:11:48 onwards (not explained in the video)
+> 📘 **Course:** not taught by the course; assumed from video 7 (the first controller) onwards · 🎥 **YouTube video:** used from 00:11:48 onwards (not explained in the video) · 🌿 **Branch:** `main`
 
-## 1. The problem (why classes exist)
+## 1. The problem
 
-You already make objects with factory functions:
+Open `src/user/user.service.ts:43`. The line that makes the whole service work is:
 
-```js
-function createUser(name) {
-  return {
-    name,
-    greet() { return "Hi, I'm " + this.name; },
-  };
+```ts
+constructor(private readonly userLoggerService: UserLoggerService) {}
+```
+
+and further down, at `src/user/user.service.ts:103`, the data is read as `this.users.find(...)`. If you have only ever written functional JavaScript, this is strange in two ways. You know how to make an object that remembers things: a factory function with a closure. And you have never needed the word `this`.
+
+So the natural first attempt is to write the class the way you would write the factory:
+
+```ts
+class UserService {
+  constructor(userLoggerService: UserLoggerService) {
+    const users = [{ id: 1, name: 'saim' }];      // "remembered" the closure way
+  }
+  getUserByName(name: string) {
+    return users.find((u) => u.name === name);    // ❌ Cannot find name 'users'
+  }
 }
 ```
 
-A class is **another way to write a function that makes objects**, with a few extras:
-methods are shared instead of copied, inheritance (`extends`) is built in, and **frameworks can read information about it** (decorators, parameter types).
-That last point is why Nest is class-based.
+TypeScript refuses to compile it, and plain JS would throw `ReferenceError: users is not defined` the first time the method runs. The method cannot see the constructor's variable. And once you fix that and start using `this`, a second trap is waiting: pass a method somewhere as a callback (`users.map(this.toDto)`) and it crashes at request time with `TypeError: Cannot read properties of undefined`.
+
+Nest is built entirely from classes, so these two things (where data lives, and what `this` is) have to be clear before anything else in this course makes sense.
 
 ## 2. Mental model
 
@@ -31,9 +41,90 @@ field       = something stored ON the cookie
 method      = something every cookie can do (shared, stored once on the cutter)
 ```
 
-## 3. How it works behind the scenes
+Functional comparison: a class is **another way to write a function that makes objects**. A field is what a closure variable would have been. `this` is the object before the dot in the call. The extras a class adds are that methods are stored once instead of copied per object, inheritance (`extends`) is built in, and, the reason Nest cares, **a framework can read information about a class at runtime** (labels from decorators, constructor parameter types).
 
-### 3.1 "Creating an object" = using a piece of memory
+## 3. Baby steps
+
+### Step 1: the factory function you already write
+
+```js
+function createUser(name) {
+  return {
+    name,
+    greet() { return "Hi, I'm " + this.name; },
+  };
+}
+const u = createUser('saim');
+u.greet();   // "Hi, I'm saim"
+```
+
+This works and it is a perfectly good way to make objects. Two things are less good about it. First, every call to `createUser` creates a **fresh copy of `greet`**: ten thousand users means ten thousand `greet` functions in memory. Second, there is nothing here a framework could inspect. `createUser` is a function; there is no place to attach "I am a controller for `/user`", and no way for anything to know what arguments it wants.
+
+### Step 2: naive class, written with closure thinking
+
+```js
+class Counter {
+  constructor(start) { /* `start` dies when this function ends */ }
+  inc() { start++; }                  // ❌ ReferenceError: start is not defined
+}
+```
+
+**What breaks:** in functional code, closures remember variables because the inner function is written *inside* the outer one:
+
+```js
+function createCounter(start) {
+  let count = start;
+  return { inc() { count++; } };     // inc "sees" count, closure ✅
+}
+```
+
+In a class, `inc` is **not inside** the constructor. They are two separate functions that happen to be written in the same block. When the constructor finishes, its local variables are gone, exactly like any other function's locals.
+
+### Step 3: better. Store the data on the object
+
+The object created by `new` is the only thing that survives after the constructor returns, and it is the one thing every method can reach. So you move the data from the temporary variable onto the object, and read it back later:
+
+```js
+class Counter {
+  constructor(start) { this.count = start; }  // move from temporary variable → object
+  inc() { this.count++; }                      // read from object
+}
+```
+
+Why is this not automatic? Because not every parameter should be stored. Some are only used to compute something (`this.total = price * qty`), some are validated and thrown away. JavaScript leaves the choice to you.
+
+**What is still wrong:** it now works when called as `counter.inc()`, and silently does not when the method is handed around:
+
+```js
+const c = new Counter(0);
+const fn = c.inc;
+fn();   // TypeError: Cannot read properties of undefined (reading 'count')
+```
+
+Nothing is before the dot, so `this` is `undefined` (class bodies always run in strict mode). The code looks right, compiles fine, and blows up at the moment of the call.
+
+### Step 4: what a senior does
+
+Know the four rules of `this` (section 4), and write code that does not depend on the caller getting it right:
+
+```ts
+class UserService {
+  constructor(private readonly userLoggerService: UserLoggerService) {}   // stored on the object by TS
+  private users: User[] = [{ id: 1, name: 'saim' }];                         // per-object data
+
+  getUserByName(name: string) {
+    return this.users.find((u) => u.name === name);   // arrow: keeps the method's `this`
+  }
+}
+```
+
+Data goes on the object, callbacks are arrow functions so they borrow the method's `this`, and anything that must be truly hidden uses `#field` rather than the TypeScript-only `private` (section 7). Prefer receiving collaborators in the constructor over `extends` chains (section 8).
+
+The vocabulary for all this, now that you have seen it: the recipe is a **class**, the object `new` makes from it is an **instance**, the setup function is the **constructor**, per-object data are **fields**, shared functions are **methods**, and the `private readonly x: X` shortcut in a constructor is a **parameter property**.
+
+## 4. How it works underneath
+
+### 4.1 "Creating an object" means using a piece of memory
 
 ```js
 const a = { name: 'saim' };
@@ -49,9 +140,9 @@ a.name;                // 'ali' ← same object
  b ──┘
 ```
 
-Variables hold an **address**. `new` makes a **new** piece of memory.
+Variables hold an **address**. `new` makes a **new** piece of memory. This is also why `find()` in `src/user/user.service.ts:168-176` can change the stored user: it returns the address of the object inside the array, not a copy.
 
-### 3.2 What `new User('saim')` really does
+### 4.2 What `new User('saim')` really does
 
 ```js
 class User {
@@ -69,40 +160,38 @@ class User {
 5. return obj
 ```
 
-⚠️ Verified from our own compiled code (`dist/user/user.service.js`): **fields first, then constructor body.**
-
-### 3.3 Why you must write `this.name = name`
-
-In functional code, **closures** remember variables:
+Before the `class` keyword existed, people wrote the same thing by hand, and it is still what runs underneath:
 
 ```js
-function createCounter(start) {
-  let count = start;
-  return { inc() { count++; } };     // inc "sees" count, closure ✅
+function User(name) {                      // the "constructor"
+  this.role = 'member';
+  this.name = name;
 }
+User.prototype.greet = function () {       // one shared function
+  return 'Hi ' + this.name;
+};
+const u = new User('saim');                // steps 1–5 above
 ```
 
-In a class, methods are **not inside** the constructor, so they can't see its variables:
+⚠️ Verified from this repo's own compiled code (`dist/user/user.service.js:15-24`): **fields first, then the constructor body.** This is what the TypeScript in `src/user/user.service.ts` becomes:
 
 ```js
-class Counter {
-  constructor(start) { /* `start` dies when this function ends */ }
-  inc() { start++; }                  // ❌ ReferenceError
-}
+let UserService = class UserService {
+    userLoggerService;                              // field declared (undefined for now)
+    constructor(userLoggerService) {
+        this.userLoggerService = userLoggerService; // the parameter property's hidden line
+    }
+    users = [
+        { id: 1, name: 'saim' },
+        { id: 2, name: 'Jane Smith' },
+        { id: 3, name: 'Alice Johnson' },
+    ];
+    getUserByName(name) { ... }
 ```
 
-The **object** is the only thing that survives, so you store data on it and read it back via `this`:
+Reading it in that order: `obj.userLoggerService = undefined`, then `obj.users = [...]`, and only then does the constructor body set `obj.userLoggerService = logger`. Types, `private` and `readonly` are gone; they never existed at runtime.
 
-```js
-class Counter {
-  constructor(start) { this.count = start; }  // move from temporary variable → object
-  inc() { this.count++; }                      // read from object
-}
-```
-
-Why not automatic? Not every parameter should be stored: some are only used to compute something (`this.total = price * qty`) or validated and thrown away.
-
-### 3.4 Methods live on the prototype (stored once)
+### 4.3 Methods live on the prototype (stored once)
 
 ```
  User.prototype:  { greet: ƒ }      ← ONE greet function in memory
@@ -111,10 +200,9 @@ Why not automatic? Not every parameter should be stored: some are only used to c
    userA {name}   userB {name}      ← each object only stores its own data
 ```
 
-`userA.greet()` → JS looks on `userA`, doesn't find `greet`, walks up to `User.prototype`, finds it, and calls it with `this = userA`.
-Factory functions returning object literals create a **new copy** of every method per object.
+`userA.greet()` makes JS look on `userA`, not find `greet`, walk up to `User.prototype`, find it there, and call it with `this = userA`. Factory functions returning object literals create a **new copy** of every method per object instead.
 
-### 3.5 `this` is decided by HOW you call, not where it's written
+### 4.4 `this` is decided by HOW you call, not where it's written
 
 | Call style | `this` is |
 |---|---|
@@ -123,9 +211,34 @@ Factory functions returning object literals create a **new copy** of every metho
 | `new Thing()` | the brand-new object |
 | arrow function `() => this.x` | **no own `this`**; uses the `this` of the surrounding code |
 
-This is why `this.users.find((u) => ...)` works fine inside a method: the arrow doesn't mess with `this`.
+This is why `this.users.find((u) => ...)` works fine inside a method: the arrow does not have its own `this`, so it borrows the method's. A `function () {}` callback would have its own (undefined) `this` and lose the service.
 
-### 3.6 TypeScript extras you'll see in Nest
+### 4.5 The chain of `this` in one request through this repo
+
+Nest always calls your methods with the dot, so `this` is right at every level:
+
+```
+ GET /user?name=saim
+   │
+   ▼
+ Nest calls  userController.getUser('saim')                src/user/user.controller.ts:59
+             └─ inside: this = userController               (the object built at startup)
+                  │
+                  ▼
+             this.userService.getUserByName('saim')          src/user/user.service.ts:94
+             └─ inside: this = userService
+                  │
+                  ▼
+             this.userLoggerService.log('Searching ...')     src/user/user.logger.service.ts:19
+             └─ inside: this = userLoggerService
+                  │
+                  ▼
+             console.log('[UserLoggerService] Searching for user with name: saim')
+```
+
+Each arrow is a call with something before the dot. Break any one of them (hand the method around without the dot) and that level's `this` becomes `undefined`.
+
+### 4.6 TypeScript extras you'll see in Nest
 
 ```ts
 constructor(private readonly userLoggerService: UserLoggerService) {}
@@ -138,6 +251,8 @@ constructor(userLoggerService: UserLoggerService) {
 }
 ```
 
+The shorthand exists because "take this parameter and store it on the object under the same name" is what nearly every Nest constructor does. Nothing else in the class changes.
+
 | Keyword | Meaning | Exists at runtime? |
 |---|---|---|
 | `private` | only this class's code may use it | ❌ TS check only. It's a normal property in JS. (`#field` is real runtime privacy.) |
@@ -146,37 +261,98 @@ constructor(userLoggerService: UserLoggerService) {
 | `extends` | inherit fields + methods from another class | ✅ |
 | `implements NestInterceptor` | "I promise to have the methods this interface lists" | ❌ TS check only |
 
-## 4. In our project
+## 5. Functional vs class
 
-- [src/user/user.service.ts](../src/user/user.service.ts): parameter property, fields, `this`, compiled-output walkthrough
-- [src/user/dto/update-user.dto.ts](../src/user/dto/update-user.dto.ts): `extends`
-- [src/utils/transform.interceptor.ts](../src/utils/transform.interceptor.ts): `implements` (next topic)
+The same service, both ways. The functional version is written out as a comment at `src/user/user.service.ts:190-211`.
 
-## 5. ❌ How NOT to do it
+```js
+// Functional: data in closure variables
+function createUserService(userLoggerService) {      // <- constructor param
+  const users = [{ id: 1, name: 'saim' }];           // <- private field
 
-| Don't | Why |
-|---|---|
-| Pass a method as a callback: `arr.map(this.format)` | `this` is lost inside `format` → crash. Use `arr.map((x) => this.format(x))`. |
-| Forget `private`/`readonly` on a constructor param and still use `this.x` | The value was never stored. TS error (or `undefined` in plain JS). |
-| Rely on `private` to hide secrets | It's compile-time only. `console.log(service)` prints "private" fields, **including API keys** → leaked into logs. |
-| Deep inheritance chains (`A extends B extends C extends D`) | Changing D breaks A in surprising ways. Prefer composition: inject what you need (that's what DI is). |
+  return {
+    getUserByName(name) {
+      const user = users.find((u) => u.name === name);   // closure, no `this`
+      userLoggerService.log(`Searching for user with name: ${name}`);
+      return user;
+    },
+  };
+}
+const userService = createUserService(createUserLogger());
+```
 
-## 6. 🧠 Senior engineer lens
+```ts
+// Class: data on the object, reached through `this`
+@Injectable()
+export class UserService {
+  constructor(private readonly userLoggerService: UserLoggerService) {}
+  private users: User[] = [{ id: 1, name: 'saim' }];
 
-- **Composition over inheritance.** Nest itself shows this: services don't `extends LoggerService`, they **receive** a logger in the constructor.
-  Easier to swap, test, and understand.
-- **Know what's runtime and what's compile time.** TS types don't validate incoming JSON. A lot of backend bugs come from
-  assuming a type annotation protects you at runtime (you'll see this again in Pipes).
-- When in doubt, **read the compiled JS** in `dist/`. It's the truth.
+  getUserByName(name: string) {
+    const user = this.users.find((u) => u.name === name);
+    this.userLoggerService.log(`Searching for user with name: ${name}`);
+    return user;
+  }
+}
+// Nest does: new UserService(new UserLoggerService())
+```
 
-## 7. 🔗 Connects to
+Line by line they map onto each other: constructor parameter ↔ factory parameter, field ↔ closure variable, `this.users` ↔ `users`.
+
+**What the class version buys:**
+- One copy of each method, on the prototype, however many objects exist.
+- A runtime value (the class) that decorators can label and that Nest can look up the constructor's parameter types on. `@Injectable()` has nowhere to go on a factory function, and there is no way to ask a factory what it wants passed in. This is the reason Nest is class-based, and it is the whole subject of note 03.
+- `instanceof`, `extends`, and `implements` for free.
+- Real privacy is available with `#field` (the closure version has it by default).
+
+**What it costs:**
+- `this` depends on the call site. The closure version cannot lose its data no matter how the method is passed around.
+- Field order and constructor order become something you must know (section 4.2).
+- More ceremony: `private readonly`, types, decorators.
+
+**When to pick which:** inside Nest, class, because the framework needs it. In a plain script or a small helper module, a factory function with closures is usually clearer and safer. The senior habit is to know which trade you are making.
+
+## 6. In my project
+
+- `src/user/user.service.ts:43`: the parameter property. The long form it expands to is written above it at `:20-24`.
+- `src/user/user.service.ts:84-88`: a field with a starting value (`private users: User[] = [...]`), and the walkthrough of what `new UserService(logger)` does, step by step, at `:62-68`.
+- `src/user/user.service.ts:103`: an arrow callback inside a method, so `this` still means the service.
+- `src/user/user.service.ts:107`: using the injected dependency through `this.userLoggerService`.
+- `src/user/user.controller.ts:42`: the same shortcut on the controller. `:48` is a field (`private requestCount = 0`) living on the one shared controller object (note 04). `:65` is a bare `this;`, with a comment showing that logging it prints `UserController { userService: UserService { userLoggerService: ..., users: [...] } }`.
+- `src/user/user.controller.ts:148-158`: the full chain of `this` for `GET /user?name=saim`, the same sequence as section 4.5.
+- `src/user/dto/update-user.dto.ts:38`: `extends PartialType(CreateUserDto)`. You can extend any expression that returns a class; `extends` does not need a name.
+- `src/user/dto/create-user.dto.ts:45`: a class used mainly as a **type** and as a place for labels; Nest never calls `new CreateUserDto()` for a request body (note 07).
+- `src/utils/transform.interceptor.ts:18`: `implements NestInterceptor` (note 06).
+- `dist/user/user.service.js:15-24`: the compiled truth, quoted in section 4.2. Run `pnpm build` to regenerate it.
+
+## 7. ❌ How NOT to do it
+
+| Mistake | What breaks | Who gets hurt |
+|---|---|---|
+| Pass a method as a callback: `arr.map(this.format)` | `this` is lost inside `format`, so `this.x` throws `TypeError: Cannot read properties of undefined`. Use `arr.map((x) => this.format(x))`. | Every user hitting that route, at request time, not at startup |
+| Forget `private`/`readonly` on a constructor param and still use `this.x` | The value was never stored. TS error, or `undefined` in plain JS. | You, reading a confusing "property does not exist" message |
+| Rely on `private` to hide secrets | It's compile-time only. `console.log(service)` prints "private" fields, **including API keys**, into the logs. | The whole company, when the log system is readable by more people than the vault is |
+| Deep inheritance chains (`A extends B extends C extends D`) | Changing D breaks A in surprising ways. Prefer composition: receive what you need in the constructor (that's what DI is). | The developer changing D, who cannot see A from there |
+| Use a constructor parameter from a field initializer, through a method call (`ready = this.check()` where `check` reads `this.logger`) | Field initializers run **before** the constructor body (section 4.2), so `this.logger` is still `undefined` there. TypeScript flags the direct form `ready = this.logger !== undefined` (error TS2729, "used before its initialization"), but it cannot see through the method call, so that version compiles and is wrong at runtime. | Whoever assumes constructor params are available "from the top" of the class |
+
+## 8. 🧠 Senior engineer lens
+
+**Composition over inheritance.** Nest itself shows this: services don't `extends LoggerService`, they **receive** a logger in the constructor. Easier to swap, test, and understand. Inheritance is for "is a" (an `UpdateUserDto` *is a* partial `CreateUserDto`); collaborators are for "uses a".
+
+**Know what's runtime and what's compile time.** TS types don't validate incoming JSON, `private` does not hide anything from `JSON.stringify`, and `implements` promises nothing once compiled. A lot of backend bugs come from assuming a type annotation protects you at runtime (you'll see this again in Pipes, note 07).
+
+**When in doubt, read the compiled JS in `dist/`.** It's the truth. Every claim in section 4.2 came from there, and it is how you settle any argument about field order, decorators or what `private` really does.
+
+**One object, many requests.** Because Nest makes one instance of each service and reuses it, a field is shared state across every request the server ever handles. That is the subject of note 04, and it is the single most important consequence of "data lives on the object".
+
+## 9. 🔗 Connects to
 - [03 — DI](03-modules-controllers-providers-di.md): who calls `new` on your classes
 - [04 — Shared state](04-requests-shared-state-event-loop.md): fields vs local variables across requests
 
-## 8. ✍️ In my own words
+## 10. ✍️ In my own words
 > _(write here)_
 
-## 9. 🛠️ Practice
+## 11. 🛠️ Practice
 
 In a scratch file `practice/classes.ts`, run with `npx tsx practice/classes.ts`:
 
@@ -188,12 +364,12 @@ In a scratch file `practice/classes.ts`, run with `npx tsx practice/classes.ts`:
 
 <details><summary>Hints</summary>
 
-- Step 4: an arrow wrapper at the call site, or define `deposit = (amount: number) => {...}` as an arrow **field**. What's the memory trade-off of the second one? (Look at 3.4.)
+- Step 4: an arrow wrapper at the call site, or define `deposit = (amount: number) => {...}` as an arrow **field**. What's the memory trade-off of the second one? (Look at 4.3.)
 - Step 5: `#balance`. Then try `console.log(wallet)` and compare with a `private` field.
 
 </details>
 
-## 10. ❓ Quiz
+## 12. ❓ Quiz
 
 **Q1.**
 ```ts
@@ -273,5 +449,27 @@ or, better, a `ConfigService` (Day 7/13).
 
 **B.** Class methods live once on the prototype. Object-literal methods are created per call.
 In Nest this rarely matters for services (there's only one object), but it matters for things created per request or per row (entities, DTOs).
+
+</details>
+
+**Q5.**
+```ts
+@Injectable()
+export class ReportService {
+  constructor(private readonly logger: Logger) {}
+  private readonly ready = this.check();
+  private check() { return this.logger !== undefined; }
+}
+```
+Nest creates it with `new ReportService(logger)`. What is `ready`?
+
+- A) `true`, the constructor runs first and stores `logger`
+- B) `false`, field initializers run before the constructor body, so `this.logger` is still `undefined` when `check()` runs
+- C) A compile error: fields cannot call methods
+- D) `true`, because parameter properties are assigned before any field
+
+<details><summary>Answer</summary>
+
+**B.** Look at the compiled output in section 4.2: the parameter property becomes a bare field declaration (`logger;`), then the constructor body assigns it. All field initializers run in written order **before** the constructor body, and at that moment `this.logger` is `undefined`, so `check()` returns `false`. TypeScript would have caught the direct form `ready = this.logger !== undefined` (error TS2729, "Property 'logger' is used before its initialization"), but it cannot see through a method call, so this version compiles and is silently wrong. The fix is to compute `ready` inside the constructor body, or turn it into a method that runs when asked.
 
 </details>

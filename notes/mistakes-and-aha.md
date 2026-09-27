@@ -49,3 +49,18 @@ Lesson: always check `pwd` before installing, and read `package.json` after.
 `require()` (CommonJS), which can't load ESM on Node < 24.9 → "Must use import to load ES Module". Fix: run Jest in ESM mode
 (`extensionsToTreatAsEsm`, ts-jest `useESM`, and `import { jest } from '@jest/globals'` in specs). The generated specs also
 failed with DI errors: a test module must **provide every dependency** (real or fake via `useValue`), same as a real module.
+
+## 2026-09-25 · Notes audit
+
+**🔧 Correction (Claude got it wrong first):** note 10 said the database "refuses to delete a coffee that still has links".
+Checked with `\d coffee_flavors`: TypeORM created the link table's foreign keys with `ON DELETE CASCADE`, so deleting a
+coffee **also deletes its link rows**, silently. The "refuse" behavior is the other option (`RESTRICT`), and you choose
+between them. Lesson: "the database enforces it" is only half an answer; ask *which* rule it enforces.
+
+**🔧 Correction:** note 03 said removing `@Injectable()` fails at startup. Checked against the Nest source and a compiled
+class: startup succeeds, and the injected field is `undefined` at request time instead. Worse than an error, because
+it hides until a request hits it.
+
+**💡 Method:** the whole rewrite pass verified claims by compiling with the project's TypeScript, reading `dist/`,
+inspecting `node_modules/@nestjs/core`, and running SQL against the container. Anything not verified is marked
+"roughly" in the notes.
