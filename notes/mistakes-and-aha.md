@@ -64,3 +64,65 @@ it hides until a request hits it.
 **💡 Method:** the whole rewrite pass verified claims by compiling with the project's TypeScript, reading `dist/`,
 inspecting `node_modules/@nestjs/core`, and running SQL against the container. Anything not verified is marked
 "roughly" in the notes.
+
+## 2026-09-27 · Building blocks (videos 51–60)
+
+**⚠️ A catch-all filter can leak more than no filter at all.** `@Catch()` + `exception.getStatus()` crashes when the
+error is a plain `Error`, Express's default handler takes over, and the client gets an HTML page with a full stack
+trace and node_modules paths. Rules: never assume the exception type (`instanceof HttpException`), never let a
+filter throw.
+
+**⚠️ `exception.message` is not the validation errors.** For a failed DTO it is the string `"Bad Request Exception"`;
+the array of field errors lives in `exception.getResponse()`. A filter built on `.message` silently drops them.
+
+**⚠️ The video's `reflector.get(context.getHandler())` is too narrow.** With `@Public()` on a controller class it
+returns `undefined` while `getAllAndOverride([handler, class])` returns `true` — following the video exactly would
+leave a whole controller denied.
+
+**💡 A global guard doesn't run for unmatched URLs.** `/does-not-exist` → 404, not 401, so the difference tells an
+attacker which routes exist.
+
+**💡 Middleware sees 404s; interceptors don't.** Middleware runs before routing, so it can log requests for URLs
+that match nothing. An interceptor only runs when a handler was found.
+
+**💡 The timeout consequence, measured:** client got its 408 at t+3.03s; the handler logged that it finished at
+t+5.07s. `timeout()` stops the waiting, not the work.
+
+**💡 The course's hand-written ParseIntPipe has the same bug as my old `parseInt`:** `1abc`→1, `3.7`→3, `0x10`→0.
+The built-in one checks the shape with `/^-?\d+$/` *before* converting. Validate, then convert.
+
+## 2026-09-29 · Docs, tests, HTTP (videos 61–71 + the 10–12 gap)
+
+**🔴 My unit suite is red and I didn't know.** `pnpm test` → 4 failures, all
+`Nest can't resolve dependencies of the CoffeeService (CoffeeRepository, ?)`: `coffee.service.spec.ts` provides a fake
+for `Coffee` but not for `Flavor`, which the service started asking for when the many-to-many relation was added.
+Lesson: a test file is code too, and it goes stale when a constructor changes.
+
+**🔴 My e2e test passes and it shouldn't.** `createNestApplication()` builds only the module graph, so **nothing in
+`main.ts` runs**: no global ValidationPipe, no TransformInterceptor. Measured side by side — the e2e app returns
+`"Hello World!"`, the real app returns `{"statusCode":200,"data":"Hello World!","success":true}`. A green tick on a
+program no user talks to. Fix: move the globals to `APP_PIPE`/`APP_INTERCEPTOR` so the module graph carries them.
+
+**🔴 `GET /coffee?limit=5&offset=0` → 400 "offset must be a positive number".** The first page of every list is
+broken, because `@IsPositive()` means "> 0". And with no parameters the whole table comes back.
+
+**⚠️ `PartialType` from `@nestjs/mapped-types` is invisible to Swagger** — measured `properties: {}` in the generated
+docs, while `PartialType` from `@nestjs/swagger` gives the full set. Both my update DTOs use the mapped-types one.
+
+**⚠️ Hand-written docs drift from the validation rules next to them.** Demo: docs said "at least 2 characters" with
+example `"Ka"`; the server answered `400 "name must be longer than or equal to 5 characters"`. The CLI plugin exists
+because of exactly this.
+
+**💡 Idempotency, measured:** the same `POST /coffee` body twice → ids 7 **and** 8. Three identical `PUT`s → one row.
+Three POSTs with one `Idempotency-Key` + a unique constraint → one row, and Postgres raised `duplicate key value
+violates unique constraint` for the rest. This is the referee-scores-a-goal-twice problem in the tournament project.
+
+**💡 pnpm skips `pretest`/`posttest` by default** (pnpm 8), so the course's `pretest:e2e` trick silently does nothing
+here. Needs `enable-pre-post-scripts=true` in `.npmrc`.
+
+**✅ Both fixed the same day (2026-09-29).** The missing `getRepositoryToken(Flavor)` provider went into
+`coffee.service.spec.ts`, and the two globals moved from `main.ts` into `AppModule` as `APP_PIPE` / `APP_INTERCEPTOR`,
+so the app an e2e test builds is the app a user gets. `test/app.e2e-spec.ts` now asserts the real envelope
+`{statusCode, data, success}`. A third failure appeared while fixing the first — `create()` is called with
+`{...dto, flavor: []}` now that flavors are a relation — which is a test correctly reporting a change.
+Final: **16/16 unit, 1/1 e2e**, and the running app is byte-identical for real requests.

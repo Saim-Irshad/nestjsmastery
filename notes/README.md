@@ -23,7 +23,7 @@
 | 05 | [Exception Filters](05-exception-filters.md) | status codes, error contracts, crashes | ✅ |
 | 06 | [Interceptors](06-interceptors.md) | RxJS just enough, response envelopes, timeouts, caching leaks | ✅ |
 | 07 | [Pipes & Validation](07-pipes-validation.md) | trust boundary, mass assignment, runtime vs compile-time types | ✅ |
-| 08 | REST & HTTP (course 1–12) | status codes, PUT vs PATCH, idempotency, pagination | ⬜ |
+| 08 | [REST & HTTP status codes](08-rest-http-status-codes.md) | what the client does with a status code, PUT vs PATCH, **idempotency** | ✅ |
 | 09 | [Database, Docker & TypeORM](09-database-docker-typeorm.md) | containers vs VMs, images/layers, volumes · ORMs, repositories, real SQL, pools | ✅ |
 | 10 | [Relations](10-relations.md) | join tables, foreign keys, N+1, Promise.all vs await-in-loop | ✅ |
 | 11 | [Transactions](11-transactions.md) | all-or-nothing, pools, lost updates, outbox | ✅ |
@@ -31,10 +31,10 @@
 | 13 | [Custom Providers](13-custom-providers.md) | the container is a lookup table; useValue / useClass / useFactory / tokens | ✅ |
 | 14 | [Dynamic Modules & Scopes](14-dynamic-modules.md) | modules you can configure; singleton/transient/request and why scope bubbles | ✅ |
 | 15 | [Configuration](15-configuration.md) | .env, validation at startup, typed namespaces, the import-order trap | ✅ |
-| 16 | Guards & Metadata | authentication vs authorization | ⬜ |
-| 17 | Middleware & Custom Decorators | Express middleware vs Nest layers | ⬜ |
-| 18 | API Docs (OpenAPI) | API contracts | ⬜ |
-| 19 | Testing | unit vs e2e, test doubles | ⬜ |
+| 16 | [Building blocks, binding & guards](16-building-blocks-and-binding.md) | which block for which requirement, 4 scopes, measured order, blast radius · guards + `@Public()` metadata | ✅ |
+| 17 | [Middleware & Custom Decorators](17-middleware-and-custom-decorators.md) | the 404 blind spot, request ids, `createParamDecorator` | ✅ |
+| 18 | [API Docs (OpenAPI)](18-api-docs-openapi.md) | docs generated from code, `@ApiProperty`, the CLI plugin, drift | ✅ |
+| 19 | [Testing](19-testing.md) | fakes via DI, e2e with supertest, why a green test can lie | ✅ |
 | 20 | MongoDB & SQL vs NoSQL | data modeling trade-offs | ⬜ |
 
 Which course lesson feeds which note: [course-map.md](course-map.md).

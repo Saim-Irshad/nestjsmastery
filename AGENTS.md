@@ -62,6 +62,16 @@ When Nest does something "magic" (DI, decorators, `forRoot`, pipes), show the 10
 **9. Tell me how NOT to do it, and what breaks.**
 Which user gets hurt, what the error message looks like, what happens at 3am in production.
 
+**9b. Show consequences, not just usage.**
+The courses show *how to call* a feature. I need *what happens when you do*: the code, the real output or error
+it produces, and what it costs (performance, blast radius, what breaks six months later). A feature I can't
+place in a real requirement is a feature I haven't learned.
+
+**9c. Link the official docs.**
+Every note gets a 📚 line in the header with the relevant https://docs.nestjs.com/... pages (and the library's
+own docs where it isn't Nest: TypeORM, class-validator, Joi, Docker). Link deeper sections inline where they
+answer a specific question. I want to be able to keep reading without you.
+
 **10. Connect to what I already know.**
 Frontend comparisons: React Error Boundaries, axios interceptors, Zod, Context, `package.json`, closures.
 
@@ -99,8 +109,10 @@ Full sentences. Normal rhythm. Long is fine. Dense is not.
 The notes must work as a **standalone course**: someone with my background, no chat history, no video, should be
 able to learn the topic from the note alone. That means every note has:
 
-- the problem, in a scenario I can picture
+- the problem, in a scenario I can picture, and a way to decide **which tool this requirement calls for**
 - the baby-step progression with **code at each step** and **what its output/error looks like**
+- **official docs links** (📚 in the header, plus inline where a section answers a specific question)
+- **consequences**: what each choice costs, what it affects that I wasn't thinking about
 - at least one **diagram** (flow, shape, or before/after)
 - the **functional version vs the class version** where a class is involved
 - **how Nest does it underneath**, in plain JS

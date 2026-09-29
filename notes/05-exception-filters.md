@@ -2,7 +2,8 @@
 
 > 📍 **Where on the Big Map:** the red ✖ path. If a guard, interceptor, pipe, controller or service **throws**, the filters decide what error response the client gets.
 > 🎥 **Video:** 00:30:23 – 00:33:21
-> 📘 **Course:** video 14 (Send User-Friendly Error Messages) · video 53 (Catch Exceptions with Filters) extends this note later · 🌿 **Branch:** `main`
+> 📘 **Course:** video 14 (Send User-Friendly Error Messages) · video 53 (Catch Exceptions with Filters, folded in at §3.6) · 🌿 **Branch:** `main`
+> 📚 **Docs:** [Exception filters](https://docs.nestjs.com/exception-filters) · [Catch everything](https://docs.nestjs.com/exception-filters#catch-everything) · [Binding filters](https://docs.nestjs.com/exception-filters#binding-filters) · [Built-in HTTP exceptions](https://docs.nestjs.com/exception-filters#built-in-http-exceptions)
 
 ## 1. The problem
 
@@ -135,13 +136,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     res.status(status).json({
       success: false,
       statusCode: status,
-      message: exception.message,
+      message: exception.message,            // ⚠️ not enough on its own, see §3.6
       path: req.url,
       timestamp: new Date().toISOString(),
     });
   }
 }
 ```
+
+⚠️ That `exception.message` line is the version most examples show, and it loses information. For a validation error thrown by the `ValidationPipe`, `.message` is the string `"Bad Request Exception"` and the actual list of field errors lives in `exception.getResponse()` (measured in §3.6). Read `getResponse()` first and fall back to `.message`.
 
 Three ways to attach it, and the difference matters:
 
@@ -174,6 +177,159 @@ Each one is an `Error` with a status number attached. The choice is about **who 
 | `InternalServerErrorException` | 500 | Our fault |
 
 4xx means **the client's** fault: they can change the request and try again. 5xx means **the server's** fault: retrying might help, and someone on our side should get paged. Picking the wrong side has real effects, which section 7 lists.
+
+### 3.6 What the official course adds (video 53)
+
+The course builds a filter too, and it is worth walking through it with a requirement attached, because on its own it looks like a syntax demo.
+
+**The requirement.** Support forwards a complaint: *"I got an error on the coffee page this morning, around half nine."* You have this morning's log, several hundred thousand lines of it, and no way to tie that sentence to one of them. Two pieces of information would close the gap, and they need to be in the response the user can screenshot and in the log line side by side: **when** it happened and **which URL** produced it. Nest's default error body has neither:
+
+```json
+{ "message": "Coffee #-1 not found", "error": "Not Found", "statusCode": 404 }
+```
+
+So the requirement is: *every error response must carry a timestamp and the request path, and no controller or service may have to do anything about it.* That last clause is what makes it a filter rather than forty edits.
+
+**Where the file goes.** The course generates it with `nest g filter common/filters/http-exception`, into a `common/` folder: the place for code that belongs to no single feature (the same instinct as the `src/utils/` folder in this repo, and the same idea as "cross-cutting" in note 16).
+
+**The filter, line by line.**
+
+```ts
+@Catch(HttpException)                                        // ① which errors are mine
+export class HttpExceptionFilter implements ExceptionFilter {
+  catch(exception: HttpException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();                         // ② "treat this as HTTP"
+    const response = ctx.getResponse<Response>();            //    the Express res
+    const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();                    // ③ keep the ORIGINAL status
+
+    let exceptionResponse = exception.getResponse();         // ④ the error's own body
+    exceptionResponse =
+      typeof exceptionResponse === 'string'                  //    …which is sometimes a string
+        ? { message: exceptionResponse }
+        : exceptionResponse;
+
+    response.status(status).json({
+      ...(exceptionResponse as object),                      // ⑤ keep everything it already said
+      timestamp: new Date().toISOString(),                   //    add what the requirement asked for
+      path: request.url,
+    });
+  }
+}
+```
+
+Five things in there are worth pausing on.
+
+**① `@Catch(HttpException)` is a filter on a filter.** It takes one class or a comma-separated list (`@Catch(HttpException, QueryFailedError)`), and Nest does the `instanceof` check for you before it ever calls your `catch` (section 4.1 shows that lookup in ten lines of JS). `HttpException` is the base class of every `NotFoundException`, `BadRequestException` and friend from the table above, so naming the base catches all of them.
+
+**② `ArgumentsHost` is "the arguments your handler was called with, whatever transport this is".** Over HTTP those arguments are Express's `(req, res, next)`; over WebSockets they are a socket and a payload; in a microservice they are a message. The filter never receives `req` and `res` directly, because the same class has to work in all three cases. `host.switchToHttp()` is you saying "I know this one is HTTP", and only then do you get `getResponse()` and `getRequest()`. It is the smaller sibling of `ExecutionContext` from note 06 §4.7, which adds `getHandler()` and `getClass()` on top.
+
+**③ `getStatus()`, not a hardcoded number.** One filter serves every `HttpException`, so it must ask each one what status it carries: 404 from `NotFoundException`, 403 from a `ForbiddenException`, 400 from a pipe. Write `response.status(500)` in there and every user mistake in the application becomes a page for on-call.
+
+**④ `getResponse()` returns two different shapes, and the course's `typeof` check is not defensive padding.** Measured on a scratch app with this exact filter (2026-09-27):
+
+| Thrown | `exception.getResponse()` | Type |
+|---|---|---|
+| `new NotFoundException('Coffee #-1 not found')` | `{"message":"Coffee #-1 not found","error":"Not Found","statusCode":404}` | object |
+| `new HttpException('create is disabled', HttpStatus.FORBIDDEN)` | `"create is disabled"` | string |
+
+The built-in exception classes build an object for you; the raw `HttpException` constructor hands back whatever you passed it. Spreading a string would give you `{"0":"c","1":"r","2":"e", ...}`, one key per character, which is why the `typeof` line exists.
+
+**⑤ The spread keeps the original body and adds to it.** Real responses from the same run:
+
+```
+GET /coffees/-1
+  HTTP 404 Not Found
+  {"message":"Coffee #-1 not found","error":"Not Found","statusCode":404,
+   "timestamp":"2026-09-27T08:24:34.101Z","path":"/coffees/-1"}
+
+POST /coffees            (the handler throws a raw HttpException with a string)
+  HTTP 403 Forbidden
+  {"message":"create is disabled","timestamp":"2026-09-27T08:24:34.111Z","path":"/coffees"}
+```
+
+Look at the second one: **no `statusCode` and no `error` in the body.** The status line is still 403, so nothing is broken, but the video's claim that this makes errors "fairly uniform" only holds for exceptions that were built with an object body. If the contract you promised the frontend includes `statusCode` in the body, build the body yourself instead of spreading:
+
+```ts
+response.status(status).json({
+  statusCode: status,                                   // always there, taken from the exception
+  message: (exceptionResponse as any).message ?? exceptionResponse,
+  timestamp: new Date().toISOString(),
+  path: request.url,
+});
+```
+
+#### ⚠️ `exception.message` is not always the message
+
+This one changes the code in step 5 above. Same scratch app, a global `ValidationPipe` and the body `{"name":"al"}` (2026-09-27):
+
+```
+[filter] exception.message       = "Bad Request Exception"
+[filter] exception.getResponse() = {"message":["name must be longer than or equal to 3 characters",
+                                               "email must be an email"],
+                                    "error":"Bad Request","statusCode":400}
+```
+
+A `BadRequestException` thrown by the `ValidationPipe` carries the useful part, the list of what was wrong with each field, **only in `getResponse()`**. Its `.message` is the generic class name. So a filter written with `message: exception.message` (step 5, and most blog posts) silently throws away every validation message in the application, and the frontend gets `"Bad Request Exception"` with nothing to show next to the form fields. Read `getResponse()` and fall back to `.message`, not the other way round. The response the course's version produced for that body, which is the one you want:
+
+```
+HTTP 400
+{"message":["name must be longer than or equal to 3 characters","email must be an email"],
+ "error":"Bad Request","statusCode":400,"timestamp":"2026-09-27T08:26:36.278Z","path":"/user"}
+```
+
+#### Why a catch-all `@Catch()` needs care
+
+`@Catch()` with no arguments claims **every** error in the application, including the ones that are not `HttpException`s at all: a `TypeError` from a typo, a driver error from Postgres, a rejected promise from an HTTP call. Those objects have no `getStatus()` and no `getResponse()`. Here is the same filter body under `@Catch()`, hit with a route that does `throw new Error('connect ECONNREFUSED 10.0.3.12:5432')` (2026-09-27):
+
+```
+GET /coffees/boom/plain
+  HTTP 500 Internal Server Error
+  <!DOCTYPE html><html lang="en"><head>…<title>Error</title></head><body>
+  <pre>TypeError: exception.getStatus is not a function<br>
+     at CarelessAllFilter.catch (…/scratchpad/dist/filters-demo.js:44:35)<br>
+     at ExceptionsHandler.invokeCustomFilters (…/node_modules/@nestjs/core/exceptions/exceptions-handler.js:23:26)<br>
+     … 8 more frames of absolute paths …</pre></body></html>
+```
+
+Three things went wrong at once, and they are all worse than the original error:
+
+1. The filter itself threw, so Nest had nothing to send and the request fell through to **Express's own default error handler**, which in a non-production environment renders an HTML page.
+2. That page contains a **stack trace with absolute filesystem paths**, which is exactly the leak section 4.3 says the built-in filter exists to prevent. A JSON API answered with HTML, so any client parsing the body also breaks.
+3. The real cause, the database being unreachable, appears nowhere. You are now debugging `getStatus is not a function`.
+
+The safe shape for a catch-all, which is practice task 4 in this note, asks first:
+
+```ts
+@Catch()
+export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const isHttp = exception instanceof HttpException;
+    const status = isHttp ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+    const body = isHttp ? exception.getResponse() : { message: 'Internal server error' };
+
+    if (!isHttp) this.logger.error(exception);          // the truth goes to the log, not the client
+
+    ctx.getResponse<Response>().status(status).json({
+      ...(typeof body === 'string' ? { message: body } : (body as object)),
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: ctx.getRequest<Request>().url,
+    });
+  }
+}
+```
+
+And two rules that come out of the experiment: **never assume the type of `exception` inside a catch-all**, and **never let a filter throw**. A filter is the last thing standing between an error and the client; if it falls over, there is nobody behind it.
+
+#### Binding it
+
+The course binds with `app.useGlobalFilters(new HttpExceptionFilter())` in `main.ts`, which is fine for this filter because it has no dependencies. The moment it wants the injected `Logger` above, or a `Reflector`, or a service that ships errors to Sentry, that form stops working, and the fix is `{ provide: APP_FILTER, useClass: ... }` in a module's `providers`. Note 16 Part A step 4 has the full comparison and the reason (you called `new`, so you supply the arguments); quiz Q5 below is the same trap.
+
+📚 [Exception filters](https://docs.nestjs.com/exception-filters) · [Catching everything](https://docs.nestjs.com/exception-filters#catch-everything) · [Binding filters](https://docs.nestjs.com/exception-filters#binding-filters)
 
 ## 4. How it works underneath
 

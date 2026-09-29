@@ -42,14 +42,17 @@ Rules that override everything else:
 Follow `notes/_template.md`. The note must stand alone as a course chapter: no chat, no video needed.
 
 Must contain, in this order:
-1. **Where on the Big Map** + course videos + branch.
-2. **The problem** as a scenario, with the naive code.
+1. **Where on the Big Map** + course videos + branch + 📚 official docs links (docs.nestjs.com and the library's
+   own docs); link deeper pages inline where they answer a specific question.
+2. **The problem** as a scenario, with the naive code. Where the course only demonstrates syntax, add the
+   missing half: which real requirement calls for this feature, and how to tell it apart from the alternatives.
 3. **Mental model** — one picture, one frontend/functional comparison.
 4. **Baby steps** — naive → what breaks (real error/output) → better → senior. Code at each step.
 5. **How it works underneath** — plain-JS sketch of what Nest/TypeORM/Node is doing. Diagram.
 6. **Functional vs class** — side by side, when relevant. What the class version buys.
 7. **In my project** — `file:line` references and real output from running it.
-8. **How NOT to do it** — table: mistake → what breaks → who gets hurt.
+8. **How NOT to do it** — table: mistake → what breaks → who gets hurt. Include blast radius: what this choice
+   affects that he wasn't thinking about.
 9. **Senior lens** — trade-offs, scale, production, system design, what changes with a team.
 10. **Connects to** — links to other notes (before/after/confused-with).
 11. **In my own words** — leave empty.

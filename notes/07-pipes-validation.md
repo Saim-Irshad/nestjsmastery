@@ -2,7 +2,8 @@
 
 > 📍 **Where on the Big Map:** the last gate before your controller method. After guards and the interceptors' before-part, run **once per argument** (`@Body`, `@Param`, `@Query`).
 > 🎥 **Video:** 00:38:04 – 00:43:08
-> 📘 **Official course:** video16 Intro to DTOs · video17 Validate Input with DTOs · video18 Handling Malicious Request Data · video19 Auto-transform Payloads · video58 Custom Pipes (file numbers per `course-map.md`)
+> 📘 **Official course:** video16 Intro to DTOs · video17 Validate Input with DTOs · video18 Handling Malicious Request Data · video19 Auto-transform Payloads · video58 Creating Custom Pipes (folded in at §3.7) — file numbers per `course-map.md`
+> 📚 **Docs:** [Pipes](https://docs.nestjs.com/pipes) · [Custom pipes](https://docs.nestjs.com/pipes#custom-pipes) · [Built-in pipes](https://docs.nestjs.com/pipes#built-in-pipes) · [Binding pipes](https://docs.nestjs.com/pipes#binding-pipes) · [class-validator decorators](https://github.com/typestack/class-validator#validation-decorators) · [class-transformer](https://github.com/typestack/class-transformer)
 
 ## 1. The problem
 
@@ -104,6 +105,8 @@ export class ParsePositiveIntPipe implements PipeTransform {
 getUserbyId(@Param('id', ParsePositiveIntPipe) id: number) { ... }
 ```
 
+⚠️ `Number()` is more careful than `parseInt` here (it reads the whole string, so `"1abc"` is `NaN`), but it is still a lenient parser: `Number(" ")` is `0`, `Number("1e3")` is `1000` and `Number("0x10")` is `16`, and `Number.isInteger` says yes to all three. §3.7 measures that and shows the version that checks the shape with a regex before converting.
+
 `metadata` tells the function what it's looking at:
 
 ```ts
@@ -183,6 +186,126 @@ The senior version in this project is three moves, all made on 2026-09-18:
 1. `src/main.ts:54-60`: one global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })`. Every route is covered, and nobody can forget.
 2. `src/user/dto/update-user.dto.ts:38`: `class UpdateUserDto extends PartialType(CreateUserDto) {}`. Before, it was `extends CreateUserDto`, which inherited the rules too, so `PUT /user/1 { "name": "saim2" }` came back **400 "Email must be a valid email address"** because "email is required" was inherited. `PartialType` is a function that builds a new class at runtime with the same rules plus `@IsOptional()` on every field: if you send it, it must be valid; you don't have to send it.
 3. `src/user/user.service.ts:152-153`: copy explicit fields (`name: dto.name, email: dto.email`) instead of `...dto`. The pipe is the first wall; this is the second, for the day someone adds `role` to the DTO for an admin route and reuses it.
+
+### 3.7 What the official course adds (video 58)
+
+The course writes `ParseIntPipe` by hand. Nest already ships one, so the exercise is not about the pipe: it is about seeing the whole mechanism in eight lines you could have written yourself. It also, without meaning to, reproduces the exact bug this note opened with, which makes it the most useful thing in the video.
+
+**The requirement.** `GET /coffees/:id` takes an id out of the URL. Everything in a URL is text, so `id` arrives as the string `"7"`, and the service wants the number `7`. Two rules: the conversion has to happen once, at the edge, so that no service ever has to think about it; and a URL that is not a whole number has to be **refused**, not guessed at. `/coffees/1abc` must be a 400, not coffee 1.
+
+**What happens with no pipe at all.** The course starts by logging the argument. Measured on a scratch app (2026-09-27):
+
+```
+GET /coffees/raw/abc
+  handler: id = "abc"  typeof string  | parseInt → NaN
+  HTTP 200 {"got":"abc","typeofId":"string","parseInt":null}
+```
+
+Two quiet horrors in three lines. The handler was called with a value that is not a number at all, so the search ran with `NaN` and found nothing, and the client still got **200**. And `JSON.stringify(NaN)` is `null`, so `NaN` does not even survive as a visible symptom; it arrives at the frontend as a missing value. This is the same failure as section 3.1, one layer up: nobody checked, so a bad request produced a confidently wrong answer.
+
+**The pipe the course writes.**
+
+```ts
+@Injectable()
+export class ParseIntPipe implements PipeTransform {
+  transform(value: string, metadata: ArgumentMetadata) {
+    const val = parseInt(value, 10);
+    if (isNaN(val)) {
+      throw new BadRequestException(`Validation failed. "${value}" is not an integer.`);
+    }
+    return val;                       // whatever you return REPLACES the argument
+  }
+}
+
+// and on the route:
+@Get(':id')
+findOne(@Param('id', ParseIntPipe) id: number) { ... }
+```
+
+Three parts of that are the whole contract:
+
+- **`implements PipeTransform`** is a compile-time promise that this class has a `transform` method with the right signature. It is erased from the compiled JS (note 02), so it costs nothing at runtime; its job is to stop you from typing `tranform` and spending twenty minutes wondering why nothing runs.
+- **`transform(value, metadata)`**: `value` is the argument as it currently stands, after any pipe that ran before this one (section 4.1). **Whatever you return becomes the argument the handler receives**, which is the sentence to remember. Return nothing and the handler gets `undefined`.
+- **`metadata` (`ArgumentMetadata`)** describes what you are looking at. Logged for real from the run above:
+
+  ```
+  [pipe] metadata = {"metatype":"Number","type":"param","data":"id"}
+  ```
+
+  `type` is which decorator the value came from (`'param' | 'body' | 'query' | 'custom'`), `data` is the string inside it (`@Param('id')`), and `metatype` is the parameter's TypeScript type recovered at runtime through `design:paramtypes`, the same reflection trick DI uses (note 03). Here it is `Number` because the parameter is declared `id: number`. `metatype` is what lets one generic `ValidationPipe` know which DTO's rules to run (section 4.2); in a small pipe like this one, `data` is mainly useful for writing an error message that names the offending field.
+
+#### ⚠️ The course's pipe has the `1abc` bug in it
+
+Section 3.1 of this note records `GET /user/1abc` returning **user 1**, because `parseInt("1abc")` is `1`. The course's hand-written pipe uses `parseInt` and checks `isNaN`, so it carries that behaviour into the pipe. All four pipes below were put on the same route shape in the scratch app and hit with the same list of ids (2026-09-27). An empty segment (`/coffees//`) never reaches any of them: the route does not match, so it is a 404 from the router before pipes exist.
+
+| URL segment | no pipe (handler sees) | course's pipe (`parseInt` + `isNaN`) | `Number` + `Number.isInteger` | built-in `ParseIntPipe` |
+|---|---|---|---|---|
+| `7` | `"7"` string | **200** → `7` | **200** → `7` | **200** → `7` |
+| `abc` | `"abc"` string | **400** | **400** | **400** |
+| `1abc` | `"1abc"` string | **200 → `1`** ⚠️ | **400** | **400** |
+| `3.7` | `"3.7"` string | **200 → `3`** ⚠️ | **400** | **400** |
+| `%20` (a space) | `" "` string | **400** | **200 → `0`** ⚠️ | **400** |
+| `1e3` | `"1e3"` string | **200 → `1`** ⚠️ | **200 → `1000`** ⚠️ | **400** |
+| `0x10` | `"0x10"` string | **200 → `0`** ⚠️ | **200 → `16`** ⚠️ | **400** |
+
+Two of the real error bodies, so you know what the client actually reads:
+
+```
+GET /coffees/course/abc   → 400 {"message":"Validation failed. \"abc\" is not an integer.","error":"Bad Request","statusCode":400}
+GET /coffees/builtin/1abc → 400 {"message":"Validation failed (numeric string is expected)","error":"Bad Request","statusCode":400}
+```
+
+Read the ⚠️ rows as one lesson: **converting is not validating.** `parseInt` and `Number` are both *lenient parsers*; they were designed to extract something usable from messy text, so each of them accepts inputs the other rejects, and each of them silently produces a number for input that was never a number. `parseInt` reads digits until the first character it does not like and ignores the rest. `Number` reads the whole string but accepts JavaScript's other ways of writing numbers (`" "` is `0`, `1e3` is `1000`, `0x10` is `16`), so `Number.isInteger` says yes.
+
+The only version that behaves is the one that **validates the shape first and converts afterwards**, which is what Nest's own pipe does. From the installed package source (`@nestjs/common/pipes/parse-int.pipe.js`, Nest 12.0.3):
+
+```js
+isNumeric(value) {
+  return ['string', 'number'].includes(typeof value)
+      && /^-?\d+$/.test(String(value))        // the WHOLE string must be an optional minus and digits
+      && isFinite(value);
+}
+async transform(value, metadata) {
+  if (isNil(value) && this.options?.optional) return value;
+  if (!this.isNumeric(value)) throw this.exceptionFactory('Validation failed (numeric string is expected)');
+  return parseInt(String(value), 10);         // convert only after the shape is proven
+}
+```
+
+Two lines of it are the fix and worth copying into your own pipes: the regex is anchored at both ends (`^...$`), so nothing is "read until it stops making sense", and `parseInt` only runs on a string that has already been proven to be an integer. So your hand-written pipe should look like this, not like the video's:
+
+```ts
+@Injectable()
+export class ParsePositiveIntPipe implements PipeTransform<string, number> {
+  transform(value: string, metadata: ArgumentMetadata): number {
+    if (!/^\d+$/.test(value)) {
+      throw new BadRequestException(`${metadata.data} must be a whole number, got "${value}"`);
+    }
+    const n = Number(value);
+    if (n <= 0) throw new BadRequestException(`${metadata.data} must be greater than 0`);
+    return n;
+  }
+}
+```
+
+Nothing in this section says the video is pointless. Writing the pipe by hand is how `transform`, `metadata` and "what you return replaces the argument" stop being paragraphs in the docs. What it also shows, by accident, is why you should reach for the built-in pipe when one exists: somebody already thought about `1abc` and `0x10`, and you did not have to.
+
+#### When a custom pipe beats doing it in the service
+
+The interesting half of the video is the sentence about defaults: a pipe can *fill in* data, not only refuse it. So the decision is not "pipe or nothing", it is "pipe or service", and the line is about **what kind of knowledge the check needs**:
+
+| The check needs… | Where it goes | Why |
+|---|---|---|
+| only the value itself (is it an integer, a UUID, a date, within a range) | **pipe** | it is the shape of an argument, it is the same for every caller, and its answer is 400 |
+| a default when the client sent nothing (`page=1`, `limit=20`) | **pipe** (`DefaultValuePipe`, or your own) | the handler then never deals with `undefined`, so its types are honest |
+| the request as a whole, or a decision about access | guard or interceptor, not a pipe | a pipe sees one argument and nothing else (note 16 §3) |
+| the database (does this email exist, does this user own this row) | **service** | it is a business rule, it must also hold for a cron job or a queue worker, and a check alone is not safe under concurrency (quiz Q3) |
+
+Three arguments for the pipe when the check qualifies. It runs before your code, so the handler's `id: number` is true rather than hopeful, and you can delete the defensive `if` at the top of the service. Its failure is automatically a 400 with a consistent body, instead of whatever each service invented. And it is declared on the route, `@Param('id', ParseIntPipe)`, so the contract is visible where the route is read, which a check buried three files deep in a service never is.
+
+The cost, and the reason not to move everything into pipes: a pipe only runs for HTTP callers. A rule enforced only in a pipe is a rule a cron job, a queue consumer or a database migration walks straight past. Shape checks are safe to put there because bad shapes genuinely come from the outside world. Business rules are not, which is the section 8 bullet and the last row of the table above.
+
+📚 [Pipes](https://docs.nestjs.com/pipes) · [Custom pipes](https://docs.nestjs.com/pipes#custom-pipes) · [Built-in pipes](https://docs.nestjs.com/pipes#built-in-pipes) · [Binding pipes](https://docs.nestjs.com/pipes#binding-pipes)
 
 ## 4. How it works underneath
 

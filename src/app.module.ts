@@ -5,7 +5,9 @@
 // It holds no logic of its own. It's a list.
 // ============================================================================
 
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
+import { APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { TransformInterceptor } from './utils/transform.interceptor';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
@@ -88,7 +90,36 @@ import { CoffeeModule } from './coffee/coffee.module';
   // constructors (services, loggers, repositories...).
   // If a class isn't listed here, Nest doesn't know how to create it, and
   // you get "Nest can't resolve dependencies of ...".
-  providers: [AppService],
+  providers: [
+    AppService,
+
+    // ------------------------------------------------------------------------
+    // THE TWO GLOBALS, MOVED HERE FROM main.ts (2026-09-29)
+    // ------------------------------------------------------------------------
+    // APP_PIPE and APP_INTERCEPTOR are names Nest recognises: register anything
+    // under them and it applies to EVERY route, exactly like app.useGlobalX()
+    // in main.ts did. Two differences, and the second one is why we moved:
+    //
+    // 1. Nest calls `new` instead of us, so these can have dependencies
+    //    injected if they ever need them (notes/13, notes/16 Part A step 4).
+    //
+    // 2. Tests build the app from the MODULE GRAPH
+    //    (Test.createTestingModule(...).createNestApplication()), which never
+    //    runs main.ts. With the bindings here, an e2e test exercises the same
+    //    pipeline a real user gets. Before this move, test/app.e2e-spec.ts was
+    //    green while testing an app with no validation and no response wrapper
+    //    (notes/19-testing.md Part B).
+    // ------------------------------------------------------------------------
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        whitelist: true, // drop fields that have no validation rule in the DTO
+        forbidNonWhitelisted: true, // ...or rather, reject them: 400 "property isAdmin should not exist"
+        transform: true, // hand the route a real DTO instance, and convert "5" → 5
+      }),
+    },
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
+  ],
 })
 // The class is EMPTY on purpose. It only exists so the decorator has
 // something to attach its metadata to.

@@ -2,7 +2,8 @@
 
 > 📍 **Where on the Big Map:** they wrap the handler. The **before** part runs after guards and before pipes; the **after** part runs once the handler returns, before the response is sent.
 > 🎥 **Video:** 00:33:21 – 00:38:04 (theory) · 01:27:53 (used in the build)
-> 📘 **Course:** videos 55 (Using Metadata to Build Generic Guards or Interceptors), 56 (Add Pointcuts with Interceptors) and 57 (Handling Timeouts with Interceptors) extend this note later · 🌿 **Branch:** `main`
+> 📘 **Course:** videos 56 (Add Pointcuts with Interceptors) and 57 (Handling Timeouts with Interceptors), folded in at §3.5 · video 55 (Using Metadata to Build Generic Guards or Interceptors) extends this note later · 🌿 **Branch:** `main`
+> 📚 **Docs:** [Interceptors](https://docs.nestjs.com/interceptors) · [Response mapping](https://docs.nestjs.com/interceptors#response-mapping) · [Exception mapping](https://docs.nestjs.com/interceptors#exception-mapping) · [Binding interceptors](https://docs.nestjs.com/interceptors#binding-interceptors) · RxJS: [`timeout`](https://rxjs.dev/api/operators/timeout) · [`catchError`](https://rxjs.dev/api/operators/catchError) · [`map`](https://rxjs.dev/api/operators/map) · [`tap`](https://rxjs.dev/api/operators/tap)
 
 ## 1. The problem
 
@@ -137,6 +138,145 @@ Then the choices that only show up with a team and traffic:
 - **Decide the envelope once, document it, and version it.** Section 8 argues about whether to have one at all.
 
 The hook itself, a class with an `intercept(context, next)` method that Nest calls around every handler, is what Nest calls an **interceptor**. The kind of job it is for, something that applies to many routes and belongs to none of them (envelopes, timing, timeouts, caching), is what people mean by a **cross-cutting concern**.
+
+### 3.5 What the official course adds (videos 56 and 57)
+
+The course builds two interceptors. The first one lands on the same requirement this note started from, which is a good chance to compare two answers to one problem. The second one is new, and it is the more interesting of the two, because it comes with a consequence the video does not mention.
+
+#### Video 56 — `WrapResponseInterceptor`: "run something around every handler"
+
+The framing the course uses for this is **aspect-oriented programming**: some behaviour belongs to many places in a program and to none of them in particular, so instead of editing all those places you describe the behaviour once and say *where* it should be attached. The places where it gets attached are the **pointcuts**; in Nest, a pointcut is "every route", "this controller" or "this method", which is what §4.8 calls binding. The five things the video says an interceptor can do are worth keeping, because they are a checklist for "is this an interceptor's job?":
+
+| Capability | What it looks like in code | Example |
+|---|---|---|
+| run extra logic before or after the handler | code before `next.handle()`, `tap(...)` after | timing, request logging |
+| transform the **result** | `map(...)` | the envelope, stripping `password` |
+| transform the **exception** | `catchError(...)` | turning a driver error into a 503 |
+| extend the handler's behaviour | `timeout(...)`, `retry(...)` | video 57, below |
+| **replace** the handler entirely | return something without calling `next.handle()` | a cache hit |
+
+The course's version of the envelope is deliberately smaller than ours, and it is built in two moves. First `tap`, to see where an interceptor sits in the lifecycle:
+
+```ts
+@Injectable()
+export class WrapResponseInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    console.log('Before...');
+    return next.handle().pipe(tap((data) => console.log('After...', data)));
+  }
+}
+```
+
+Then `tap` is swapped for `map`, because `tap` looks and `map` changes:
+
+```ts
+return next.handle().pipe(map((data) => ({ data })));
+```
+
+Run for real in a scratch app with a `findAll()` that returns one coffee, bound with `app.useGlobalInterceptors(new WrapResponseInterceptor())` (2026-09-27):
+
+```
+[t+0.07s] Before...
+[t+0.07s] After... [{"id":1,"name":"Shipwreck Roast"}]
+
+GET /coffees
+  HTTP 200 OK
+  {"data":[{"id":1,"name":"Shipwreck Roast"}]}
+```
+
+Two things to read off that. The `data` argument inside `tap`/`map` **is** the handler's return value, so an interceptor is the one place that sees what every route in the application is about to send. And the two log lines arrived in the same millisecond, because this handler does no I/O: the "before" and "after" parts of an interceptor are not separated by time, they are separated by the handler.
+
+**How this relates to our own `TransformInterceptor`.** Same mechanism, different envelope: ours adds `statusCode` and `success` by reading the Express response (§3, step 4), the course's wraps in `data` and nothing else. The important thing is not which envelope is better, it is that **you get to have exactly one.** Bound both at once, they compose, and the result is what §7 warns about, measured (2026-09-27):
+
+```
+app.useGlobalInterceptors(new TransformInterceptor(), new WrapResponseInterceptor());
+
+GET /coffees
+  HTTP 200 OK
+  {"statusCode":200,"data":{"data":[{"id":1,"name":"Shipwreck Roast"}]},"success":true}
+```
+
+`data.data`. The frontend's unwrapper now has to know which routes were double-wrapped, and nothing in either file hints that the other one exists. That is the onion from §2 doing exactly what it promises: the outer interceptor's `map` receives whatever the inner one returned, not what the handler returned. If you follow this course video while this repo already has `TransformInterceptor` registered, you will see that body.
+
+#### Video 57 — `TimeoutInterceptor`: cut off the waiting
+
+**The requirement.** One endpoint generates a report. Most of the time it answers in 300ms; when a particular customer's data is large it takes 30 seconds. While it runs, a browser tab sits there spinning, a connection is held open, and if a load balancer in front of you gives up at 30s the user gets a blank gateway error with no explanation. What you want instead: after a fixed budget, give up waiting and answer with something honest, the same way for every route in the app, so no handler has to think about it.
+
+`timeout(ms)` from RxJS is the operator for that: it watches a stream and, if no value has arrived within `ms`, it errors instead of waiting. The naive version is one line:
+
+```ts
+return next.handle().pipe(timeout(3000));
+```
+
+Measured against a handler that sleeps 5 seconds (2026-09-27):
+
+```
+GET /coffees/slow
+  HTTP 500 Internal Server Error after 3.02s
+  {"statusCode":500,"message":"Internal server error"}
+```
+
+It cut the wait off at the right moment, and then told the client the wrong thing. `timeout` throws RxJS's own `TimeoutError`, which is not an `HttpException`, so the built-in filter did what §4.3 of note 05 describes: hid an unknown error behind a generic 500. A 500 tells the client "our fault, maybe retry"; the truth is "we ran out of time", which has its own status code. So the error has to be translated on the way out:
+
+```ts
+@Injectable()
+export class TimeoutInterceptor implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(
+      timeout(3000),
+      catchError((err) => {
+        if (err instanceof TimeoutError) {                      // from 'rxjs'
+          return throwError(() => new RequestTimeoutException()); // from '@nestjs/common' → 408
+        }
+        return throwError(() => err);                            // not mine: pass it on untouched
+      }),
+    );
+  }
+}
+```
+
+Same request, same handler, after adding those seven lines (2026-09-27):
+
+```
+GET /coffees/slow
+  HTTP 408 Request Timeout after 3.03s
+  {"message":"Request Timeout","statusCode":408}
+```
+
+Three details in that `catchError` are the difference between a useful interceptor and a trap:
+
+- **`throwError(() => x)` rather than `throw x`.** Inside an operator you are building a stream, not running code in a call stack, so you return a stream that errors. It takes a *function* returning the error so that the error object is created at the moment it is emitted, which keeps the stack trace pointing at the right place.
+- **The `else` branch re-throws.** Without it, `catchError` would swallow every other error in the application (a `NotFoundException`, a database failure) and return `undefined` as a successful value. That is the "`catchError` that returns a success value" row in §7, and it is a one-line mistake.
+- **`catchError` after `timeout`, not before.** Operators apply in order, so anything listed before `timeout` never sees the timeout error.
+
+##### ⚠️ The part the video does not say: the work keeps running
+
+This is the consequence already in §8 and quiz Q4, and here it is measured rather than asserted. The scratch handler logs when it starts its 5 seconds of work and when it finishes; the client's 408 arrives at 3 seconds (2026-09-27):
+
+```
+[t+0.07s] slow handler STARTED its 5s of work
+GET /coffees/slow → HTTP 408 Request Timeout after 3.03s
+[t+3.09s] client is done. waiting 4 more seconds to see what the server does...
+[t+5.07s] slow handler FINISHED its work (nobody is listening any more)
+```
+
+The handler finished two seconds **after** the client had already been told the request timed out. `timeout` unsubscribes from the Observable, and unsubscribing does not reach into a `Promise` and stop it: the `await` in your handler carries on, and so does the database query, the HTTP call to the payment provider and the file write behind it.
+
+```
+what you think happens                   what actually happens
+──────────────────────                   ─────────────────────
+ t=0  query starts                        t=0  query starts
+ t=3  timeout → query cancelled           t=3  timeout → CLIENT gets 408
+ t=3  DB is free again                    t=3  query is still running
+                                          t=5  query finishes, result thrown away
+                                               (the DB did all the work anyway)
+```
+
+Why it matters more than it looks: under load a timeout makes things **worse**, not better. Two hundred users hitting that report in a minute means two hundred queries still running in Postgres, plus two hundred users who saw an error and pressed retry. The timeout protected the *client's* patience and did nothing for the *server's* resources. What actually helps: a statement timeout in the database so the query itself is killed (`statement_timeout` in Postgres, `maxExecutionTime` in TypeORM), an `AbortController` for outbound HTTP calls, moving the slow work to a background job, or making it fast (note 12, indexes). The interceptor is the polite message, not the fix.
+
+**Binding both.** `app.useGlobalInterceptors(new TransformInterceptor(), new TimeoutInterceptor())` takes a comma-separated list, and order is the onion order from §2: the first one listed is the outermost. That matters here, because a timeout error raised inside must pass back out through everything wrapped around it. Neither of these two needs a dependency, so `main.ts` is enough; the moment one does, use `APP_INTERCEPTOR` (§4.8, and note 16 Part A step 4).
+
+📚 [Interceptors](https://docs.nestjs.com/interceptors) · [Response mapping](https://docs.nestjs.com/interceptors#response-mapping) · [Exception mapping](https://docs.nestjs.com/interceptors#exception-mapping) · [RxJS `timeout`](https://rxjs.dev/api/operators/timeout) · [RxJS `catchError`](https://rxjs.dev/api/operators/catchError)
 
 ## 4. How it works underneath
 

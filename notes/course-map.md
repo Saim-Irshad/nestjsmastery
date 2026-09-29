@@ -29,9 +29,9 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming ·
 | 7 | Creating a Basic Controller | [03](03-modules-controllers-providers-di.md) | ✅ |
 | 8 | Use Route Parameters | [03](03-modules-controllers-providers-di.md) | ✅ |
 | 9 | Handling Request Body / Payload | [03](03-modules-controllers-providers-di.md) | ✅ |
-| 10 | Response Status Codes | 08 REST & HTTP | ⬜ |
-| 11 | Handling Update and Delete Requests 🔇 | 08 REST & HTTP | ⬜ |
-| 12 | Implement Pagination with Query Parameters | 08 REST & HTTP | ⬜ |
+| 10 | Response Status Codes | [08](08-rest-http-status-codes.md) | ✅ |
+| 11 | Handling Update and Delete Requests 🔇 (no subtitles on the drive) | [08](08-rest-http-status-codes.md) | ✅ |
+| 12 | Implement Pagination with Query Parameters | [08](08-rest-http-status-codes.md) + [10](10-relations.md) §5b | ✅ |
 | 13 | Creating a Basic Service | [03](03-modules-controllers-providers-di.md) | ✅ |
 | 14 | Send User-Friendly Error Messages | [05](05-exception-filters.md) | ✅ |
 | 16 | Encompass Business-Domain in Modules | [03](03-modules-controllers-providers-di.md) | ✅ |
@@ -52,7 +52,7 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming ·
 | 26 | Create a Relation between two Entities | [10](10-relations.md) | ✅ |
 | 27 | Retrieve Entities with their Relations | [10](10-relations.md) | ✅ |
 | 28 | Using Cascading Inserts and Updates | [10](10-relations.md) | ✅ |
-| 29 | Adding Pagination | 10 (next) | ⬜ |
+| 29 | Adding Pagination | [10](10-relations.md) §5b | ✅ |
 | 30 | Use Transactions | [11](11-transactions.md) | ✅ note (code: practice) |
 | 31 | Adding Indexes to Entities | [12](12-indexes-migrations.md) | ✅ |
 | 32 | Setting up Migrations | [12](12-indexes-migrations.md) | ✅ |
@@ -78,28 +78,28 @@ Legend: ✅ covered in notes · 🔄 extends an existing note · ⬜ upcoming ·
 
 | Video | Lesson | Note | |
 |---|---|---|---|
-| 51–52 | Introducing More Building Blocks, Understanding Binding Techniques | 16 Guards & Metadata (+ Big Map) | ⬜ |
-| 53 | Catch Exceptions with Filters | 🔄 [05](05-exception-filters.md) | ⬜ |
-| 54 | Protect Routes with Guards | 16 | ⬜ |
-| 55 | Using Metadata to Build Generic Guards or Interceptors | 16 + 🔄 [06](06-interceptors.md) | ⬜ |
-| 56 | Add Pointcuts with Interceptors | 🔄 [06](06-interceptors.md) | ⬜ |
-| 57 | Handling Timeouts with Interceptors | 🔄 [06](06-interceptors.md) | ⬜ |
-| 58 | Creating Custom Pipes | 🔄 [07](07-pipes-validation.md) | ⬜ |
-| 59 | Bonus: Add Request Logging with Middleware | 17 Middleware & Custom Decorators | ⬜ |
-| 60 | Bonus: Create Custom Param Decorators | 17 | ⬜ |
+| 51–52 | Introducing More Building Blocks, Understanding Binding Techniques | [16](16-building-blocks-and-binding.md) | ✅ |
+| 53 | Catch Exceptions with Filters | [05](05-exception-filters.md) §3.6 | ✅ |
+| 54 | Protect Routes with Guards | [16](16-building-blocks-and-binding.md) Part B | ✅ |
+| 55 | Using Metadata to Build Generic Guards or Interceptors | [16](16-building-blocks-and-binding.md) Part B | ✅ |
+| 56 | Add Pointcuts with Interceptors | [06](06-interceptors.md) §3.5 | ✅ |
+| 57 | Handling Timeouts with Interceptors | [06](06-interceptors.md) §3.5 | ✅ |
+| 58 | Creating Custom Pipes | [07](07-pipes-validation.md) §3.7 | ✅ |
+| 59 | Bonus: Add Request Logging with Middleware | [17](17-middleware-and-custom-decorators.md) Part A | ✅ |
+| 60 | Bonus: Create Custom Param Decorators | [17](17-middleware-and-custom-decorators.md) Part B | ✅ |
 
 ## Ch.7 — OpenAPI / Swagger (videos 61–65)
 
 | Video | Lesson | Note | |
 |---|---|---|---|
-| 61–65 | Swagger module, CLI plugin, decorating model properties, example responses, tags | 18 API Docs (OpenAPI) | ⬜ |
+| 61–65 | Swagger module, CLI plugin, decorating model properties, example responses, tags | [18](18-api-docs-openapi.md) | ✅ |
 
 ## Ch.8 — Testing (videos 66–71)
 
 | Video | Lesson | Note | |
 |---|---|---|---|
-| 66–68 | Introduction to Jest, test suites, unit tests | 19 Testing | ⬜ |
-| 69–71 | Diving into e2e tests, first e2e test, e2e test logic | 19 | ⬜ |
+| 66–68 | Introduction to Jest, test suites, unit tests | [19](19-testing.md) Part A | ✅ |
+| 69–71 | Diving into e2e tests, first e2e test, e2e test logic | [19](19-testing.md) Part B | ✅ |
 
 ## Ch.9 — MongoDB + Mongoose (videos 72–80)
 

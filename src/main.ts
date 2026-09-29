@@ -15,9 +15,6 @@ import { NestFactory } from '@nestjs/core';
 // We pass the class itself to Nest. A class is just a value in JS
 // (it's really a function), so it can be passed around like any variable.
 import { AppModule } from './app.module';
-import { TransformInterceptor } from './utils/transform.interceptor';
-
-import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // What happens inside NestFactory.create(AppModule):
@@ -38,35 +35,31 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // --------------------------------------------------------------------------
-  // GLOBAL VALIDATION PIPE (notes/07-pipes-validation.md)
+  // WHERE DID THE GLOBAL PIPE AND INTERCEPTOR GO? (moved 2026-09-29)
   // --------------------------------------------------------------------------
-  // Runs on EVERY route, right before the controller method, for every
-  // argument (@Body, @Param, @Query). For a @Body() typed as CreateUserDto it:
-  //   1. turns the plain JSON into a CreateUserDto instance (class-transformer)
-  //   2. runs the @IsString/@IsEmail/... decorators on it (class-validator)
-  //   3. any rule fails → throws BadRequestException → 400 with a list of messages
+  // They used to be here:
+  //   app.useGlobalPipes(new ValidationPipe({...}));
+  //   app.useGlobalInterceptors(new TransformInterceptor());
   //
-  // FIXED (2026-09-18). Before, it was `new ValidationPipe()` with NO options,
-  // and unknown fields passed straight through: POST { name, email, isAdmin: true }
-  // → 201, and isAdmin got SAVED (the service spread ...dto).
+  // They now live in app.module.ts as APP_PIPE and APP_INTERCEPTOR providers.
+  // Same behaviour for real requests, but two things change:
   //
-  // `new` here is fine: ValidationPipe needs no injected dependencies.
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // strip fields that have no validation decorator in the DTO
-      forbidNonWhitelisted: true, // ...and instead of silently stripping, reject: 400 "property isAdmin should not exist"
-      transform: true, // handler gets a real DTO instance (and typed params get converted)
-    }),
-  );
-
-  // --------------------------------------------------------------------------
-  // GLOBAL RESPONSE WRAPPER (notes/06-interceptors.md)
-  // --------------------------------------------------------------------------
-  // Every SUCCESSFUL response becomes { statusCode, data, success: true }.
-  // Errors (404, validation 400s) skip it and keep Nest's default shape.
-  // We call `new` ourselves, so DI can't inject anything into it; if it ever
-  // needs Reflector/Logger, register it with APP_INTERCEPTOR in a module instead.
-  app.useGlobalInterceptors(new TransformInterceptor());
+  // 1. Nest builds them, so they CAN have dependencies injected (a Reflector to
+  //    read route labels, a Logger). Anything you `new` yourself gets nothing,
+  //    because whoever calls `new` provides the arguments (notes/13, notes/16).
+  //
+  // 2. ⚠️ THE REASON WE MOVED THEM: tests never run this file. A test builds the
+  //    app with Test.createTestingModule(...).createNestApplication(), which
+  //    reads the MODULE GRAPH only. Everything written here was invisible to it,
+  //    so test/app.e2e-spec.ts was passing against an app with no validation and
+  //    no response wrapper — a green tick for a program no user talks to.
+  //    Measured before the fix: e2e app returned "Hello World!", the real app
+  //    returned {"statusCode":200,"data":"Hello World!","success":true}.
+  //    (notes/19-testing.md Part B)
+  //
+  // Rule of thumb: if it must apply to every request, register it in a module,
+  // not in main.ts. Keep main.ts for things that are genuinely about the
+  // process: the port, shutdown hooks, Swagger, helmet/CORS.
 
   // Start the HTTP server. `??` means "use the right side if the left side
   // is null/undefined", so it uses PORT from the environment or falls back to 3000.
